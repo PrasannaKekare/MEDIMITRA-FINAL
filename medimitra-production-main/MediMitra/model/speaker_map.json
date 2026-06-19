@@ -1,0 +1,12 @@
+{
+  "speaker_3620": {
+    "mac": "D8:80:19:48:36:20",
+    "sink": "bluez_output.D8_80_19_48_36_20.1",
+    "family_member": "anish"
+  },
+  "speaker_5AA1": {
+    "mac": "8D:E6:F1:BC:5A:A1",
+    "sink": "bluez_output.8D_E6_F1_BC_5A_A1.1",
+    "family_member": "Prasanna"
+  }
+}
