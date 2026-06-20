@@ -1,6 +1,6 @@
 import User from "../../../models/User"; // Import the User model
 import connect from "../../../utils/db"; // Database connection utility
-import { authOptions } from "../auth/[...nextauth]/route"; // NextAuth configuration
+import { authOptions } from "../../../lib/auth"; // NextAuth configuration
 import { getServerSession } from "next-auth/next"; // Function to get the current session
 import { NextResponse } from "next/server"; // Next.js server response handling
 

@@ -3,7 +3,7 @@ import Member from "../../../models/member";
 import User from "../../../models/User";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "../../../lib/auth";
 
 export async function POST(req) {
   console.log("POST request received at /api/member");
