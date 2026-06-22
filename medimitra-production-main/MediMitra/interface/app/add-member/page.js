@@ -34,7 +34,7 @@ export default function AddMember() {
     try {
       // Send data to the FastAPI backend
       // We use a try-catch here so that if FastAPI is unreachable, we can still log it
-      const piUrl = `http://${window.location.hostname}:8000`;
+      const piUrl = "https://medimitra-final.onrender.com";
       const fastAPIresponse = await fetch(`${piUrl}/users/` + userEmail + '/family/', {
         method: 'POST',
         headers: {
