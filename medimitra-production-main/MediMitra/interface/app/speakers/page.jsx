@@ -44,7 +44,11 @@ export default function SpeakerSetup() {
 
   const fetchSpeakers = async () => {
     try {
-      const res = await fetch(`${piUrl}/speakers/scan`);
+      const res = await fetch(`${piUrl}/speakers/scan`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
       const data = await res.json();
       setSpeakers(data.speakers || []);
     } catch (err) {
@@ -90,7 +94,12 @@ export default function SpeakerSetup() {
 
       const res = await fetch(
         `${piUrl}/speakers/test?${params.toString()}`,
-        { method: "POST" }
+        { 
+          method: "POST",
+          headers: {
+            "ngrok-skip-browser-warning": "true"
+          }
+        }
       );
 
       if (!res.ok) {
@@ -119,7 +128,10 @@ export default function SpeakerSetup() {
     try {
       await fetch(`${piUrl}/speakers/map`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true"
+        },
         body: JSON.stringify({
           family_member: selectedUser,
           speaker_id: selectedSpeaker.speaker_id,

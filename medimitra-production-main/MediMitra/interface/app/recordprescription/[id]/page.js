@@ -77,14 +77,19 @@ export default function SpeechToText() {
     formData.append("transcript", transcript);
 
     try {
-      const piUrl = "https://medimitra-final.onrender.com";
-      const response = await fetch(
-        `${piUrl}/audio-prescription/`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      let piUrl = "https://medimitra-final.onrender.com";
+      if (typeof window !== "undefined") {
+        const savedUrl = localStorage.getItem("piUrl");
+        if (savedUrl) piUrl = savedUrl;
+      }
+
+      const response = await fetch(`${piUrl}/audio-prescription/`, {
+        method: "POST",
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        },
+        body: formData,
+      });
 
       const data = await response.json();
       console.log("Response from FastAPI:", data);

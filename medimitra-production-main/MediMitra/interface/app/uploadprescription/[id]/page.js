@@ -60,9 +60,17 @@ export default function UploadPrescription() {
     }
 
     try {
-      const piUrl = "https://medimitra-final.onrender.com";
+      let piUrl = "https://medimitra-final.onrender.com";
+      if (typeof window !== "undefined") {
+        const savedUrl = localStorage.getItem("piUrl");
+        if (savedUrl) piUrl = savedUrl;
+      }
+      
       const response = await fetch(`${piUrl}/ocr/`, {
         method: "POST",
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        },
         body: formData,
       });
       if (!response.ok) {
