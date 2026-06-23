@@ -2,7 +2,6 @@ import os
 import time
 import json
 import PIL.Image
-from groq import Groq
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
@@ -29,22 +28,6 @@ gemini_model = genai.GenerativeModel(
 
 # Base directory for all file paths (directory where this script lives)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Load GROQ_API_KEY from interface/.env
-def _load_groq_key():
-    env_path = os.path.join(BASE_DIR, '..', 'interface', '.env')
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('GROQ_API_KEY='):
-                    return line.split('=', 1)[1].strip()
-    # Fallback to environment variable
-    return os.environ.get('GROQ_API_KEY', '')
-
-GROQ_API_KEY = _load_groq_key()
-groq_client = Groq(api_key=GROQ_API_KEY)
-GROQ_MODEL = "llama-3.3-70b-versatile"
 
 app = FastAPI()
 
@@ -236,21 +219,11 @@ def create_default_prompt_audio(user_name, family_name, family_member_id=None):
     # Reuse the same logic for audio
     return create_default_prompt(user_name, family_name, family_member_id)
 
-# Parse the extracted text using Groq (LLaMA 3.3 70B)
+# Parse the extracted text using Gemini
 def parse_with_gemini(extracted_text, default_prompt):
-    """Uses Groq API with llama-3.3-70b-versatile to parse prescription text.
-    Function name kept for backward compatibility with callers."""
-    response = groq_client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[
-            {"role": "system", "content": default_prompt},
-            {"role": "user", "content": extracted_text},
-        ],
-        temperature=0.3,
-        max_tokens=4096,
-        response_format={"type": "json_object"},
-    )
-    return response.choices[0].message.content
+    """Uses Gemini API to parse prescription text."""
+    response = gemini_model.generate_content([default_prompt, extracted_text])
+    return response.text
 
 # Process parsed info to update both MongoDB and schedule.json
 def process_parsed_info(parsed_info, user_name, family_member_id):
