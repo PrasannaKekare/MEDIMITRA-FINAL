@@ -403,6 +403,7 @@ import re
 @app.get("/speakers/scan")
 def scan_speakers():
     try:
+        # Try to run pactl (Linux/Raspberry Pi)
         output = subprocess.check_output(
             ["pactl", "list", "short", "sinks"],
             stderr=subprocess.STDOUT
@@ -427,6 +428,19 @@ def scan_speakers():
             "speakers": speakers
         }
 
+    except FileNotFoundError:
+        # If pactl is not found (e.g. running on Windows), return a mock speaker for testing
+        print("pactl command not found (likely running on Windows). Returning a mock speaker for testing.")
+        return {
+            "raw": "Mock Windows Environment",
+            "speakers": [
+                {
+                    "speaker_id": "speaker_mock1",
+                    "mac": "00:11:22:33:44:55",
+                    "sink": "windows_mock_speaker"
+                }
+            ]
+        }
     except Exception as e:
         return {"error": str(e)}
 
@@ -486,24 +500,30 @@ def test_speaker(
         )
 
     # Generate test audio
-    subprocess.run(
-        [
-            "espeak-ng",
-            "-w", os.path.join(BASE_DIR, "test.wav"),
-            f"This is a test for {family_member}"
-        ],
-        check=True
-    )
-
     try:
-        play_audio_for_family_member(family_member, os.path.join(BASE_DIR, "test.wav"))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        subprocess.run(
+            [
+                "espeak-ng",
+                "-w", os.path.join(BASE_DIR, "test.wav"),
+                f"This is a test for {family_member}"
+            ],
+            check=True
+        )
+
+        try:
+            play_audio_for_family_member(family_member, os.path.join(BASE_DIR, "test.wav"))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    except FileNotFoundError:
+        print("espeak-ng not found. Assuming Windows mock testing environment.")
+        # We are on Windows, just return a mock success
+        pass
 
     return {
-        "status": "played",
+        "status": "played (mocked if on Windows)",
         "family_member": family_member
     }
 

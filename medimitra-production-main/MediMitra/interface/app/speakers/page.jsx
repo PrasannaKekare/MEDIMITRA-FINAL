@@ -2,28 +2,43 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import NavbarInternal from "../components/NavbarInternal";
 
 export default function SpeakerSetup() {
   const { data: session } = useSession();
-  const [users, setUsers] = useState({});
+  const [users, setUsers] = useState([]);
   const [speakers, setSpeakers] = useState([]);
   const [selectedUser, setSelectedUser] = useState("");
   const [selectedSpeaker, setSelectedSpeaker] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [piUrl, setPiUrl] = useState("https://medimitra-final.onrender.com")
+  const [piUrl, setPiUrl] = useState("http://192.168.1.15:8000");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setPiUrl("https://medimitra-final.onrender.com");
+      const savedUrl = localStorage.getItem("piUrl");
+      if (savedUrl) {
+        setPiUrl(savedUrl);
+      } else {
+        // Default to localhost for testing if nothing is saved
+        setPiUrl("http://localhost:8000");
+      }
     }
   }, []);
+
+  const handlePiUrlChange = (e) => {
+    const url = e.target.value;
+    setPiUrl(url);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("piUrl", url);
+    }
+  };
 
   useEffect(() => {
     fetchSpeakers();
     if (session?.user?.email) {
-      fetchUsers(session.user.email);
+      fetchUsers();
     }
   }, [session, piUrl]);
 
@@ -38,11 +53,16 @@ export default function SpeakerSetup() {
     }
   };
 
-  const fetchUsers = async (email) => {
+  const fetchUsers = async () => {
     try {
-      const res = await fetch(`${piUrl}/users/${email}/family`);
+      // Fetch from the Next.js API so we get the correctly saved members
+      const res = await fetch("/api/member");
       const data = await res.json();
-      setUsers(data);
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        setUsers([]);
+      }
     } catch (err) {
       console.error("Error fetching users", err);
     }
@@ -117,78 +137,103 @@ export default function SpeakerSetup() {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 600 }}>
-      <h1 style={{ fontSize: 22, fontWeight: "bold" }}>
-        🔊 Speaker Setup
-      </h1>
+    <div className="w-screen h-screen flex flex-col bg-gradient-to-r from-[#0F081A] to-black">
+      <NavbarInternal />
+      <div className="flex flex-col items-center justify-center flex-grow p-6 text-white pt-24">
+        <div className="w-full max-w-md bg-white/10 p-8 rounded-xl shadow-lg backdrop-blur-md border border-gray-800">
+          <h1 className="text-3xl font-bold mb-6 text-center text-white">
+            🔊 Speaker Setup
+          </h1>
 
-      {/* User Selector */}
-      <div style={{ marginTop: 16 }}>
-        <label>Family Member</label>
-        <select
-          value={selectedUser}
-          onChange={e => setSelectedUser(e.target.value)}
-          style={{ width: "100%", padding: 8, marginTop: 6 }}
-        >
-          <option value="">Select family member</option>
-          {Object.keys(users).map(name => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </div>
+          {/* Raspberry Pi URL Configuration */}
+          <div className="mt-4 mb-6 pb-6 border-b border-gray-700">
+            <label className="text-gray-300 font-semibold mb-2 block">Raspberry Pi Server URL</label>
+            <input
+              type="text"
+              value={piUrl}
+              onChange={handlePiUrlChange}
+              placeholder="e.g. http://192.168.1.15:8000"
+              className="w-full p-3 bg-gray-900 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
+            />
+            <p className="text-xs text-gray-400 mt-2">
+              Enter the local IP address of your Raspberry Pi running server.py on the same Wi-Fi network.
+            </p>
+          </div>
 
-      {/* Speaker List */}
-      <div style={{ marginTop: 24 }}>
-        <label>Available Speakers</label>
-        <div style={{ marginTop: 10 }}>
-          {speakers.length === 0 && (
-            <p>No Bluetooth speakers detected</p>
-          )}
-
-          {speakers.map(sp => (
-            <label
-              key={sp.mac}
-              style={{ display: "block", marginBottom: 8 }}
+          {/* User Selector */}
+          <div className="mt-4">
+            <label className="text-gray-300 font-semibold mb-2 block">Family Member</label>
+            <select
+              value={selectedUser}
+              onChange={e => setSelectedUser(e.target.value)}
+              className="w-full p-3 bg-gray-900 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
             >
-              <input
-                type="radio"
-                name="speaker"
-                onChange={() => setSelectedSpeaker(sp)}
-              />
-              <span style={{ marginLeft: 8 }}>
-                {sp.mac}
-              </span>
-            </label>
-          ))}
+              <option value="" className="bg-gray-900 text-gray-400">Select family member</option>
+              {users.map(user => (
+                <option key={user._id || user.name} value={user.name} className="bg-gray-900 text-white">
+                  {user.name}
+                </option>
+              ))}
+            </select>
+            {users.length === 0 && (
+               <p className="text-yellow-400 text-xs mt-2">No members found. Please add a member in the Dashboard first.</p>
+            )}
+          </div>
+
+          {/* Speaker List */}
+          <div className="mt-6">
+            <label className="text-gray-300 font-semibold mb-2 block">Available Speakers</label>
+            <div className="mt-2 bg-gray-900 rounded-lg p-4 border border-gray-600 max-h-48 overflow-y-auto">
+              {speakers.length === 0 ? (
+                <p className="text-gray-400 text-sm">No Bluetooth speakers detected</p>
+              ) : (
+                speakers.map(sp => (
+                  <label
+                    key={sp.mac}
+                    className="flex items-center mb-3 cursor-pointer group"
+                  >
+                    <input
+                      type="radio"
+                      name="speaker"
+                      className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 focus:ring-purple-500"
+                      onChange={() => setSelectedSpeaker(sp)}
+                    />
+                    <span className="ml-3 text-gray-300 group-hover:text-white transition-colors">
+                      {sp.mac}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={testSpeaker}
+              disabled={loading}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:opacity-50"
+            >
+              🔊 Test
+            </button>
+
+            <button
+              onClick={saveMapping}
+              disabled={loading}
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 disabled:opacity-50"
+            >
+              💾 Save
+            </button>
+          </div>
+
+          {/* Status Message */}
+          {message && (
+            <div className={`mt-6 p-4 rounded-lg text-center font-medium ${message.includes('✅') || message.includes('🔊') ? 'bg-green-900/50 text-green-200 border border-green-800' : 'bg-red-900/50 text-red-200 border border-red-800'}`}>
+              {message}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Actions */}
-      <div style={{ marginTop: 24 }}>
-        <button
-          onClick={testSpeaker}
-          disabled={loading}
-          style={{ marginRight: 12 }}
-        >
-          🔊 Test Speaker
-        </button>
-
-        <button
-          onClick={saveMapping}
-          disabled={loading}
-        >
-          💾 Save Mapping
-        </button>
-      </div>
-
-      {/* Status Message */}
-      {message && (
-        <p style={{ marginTop: 16 }}>
-          {message}
-        </p>
-      )}
     </div>
   );
 }
