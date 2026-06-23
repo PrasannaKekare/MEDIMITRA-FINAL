@@ -1,7 +1,7 @@
 import os
 import time
 import json
-import base64
+import PIL.Image
 from groq import Groq
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form
@@ -11,7 +11,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pymongo import MongoClient
 from bson import ObjectId
-# Gemini removed
+import google.generativeai as genai
+
+# Configure Gemini API
+genai.configure(api_key="AIzaSyDnZGmCrZcM5go363ocMu1kLZO5V0swS8s")
+gemini_generation_config = {
+    "temperature": 0.3,
+    "top_p": 0.95,
+    "top_k": 64,
+    "max_output_tokens": 8192,
+    "response_mime_type": "application/json",
+}
+gemini_model = genai.GenerativeModel(
+    model_name="gemini-2.5-flash",
+    generation_config=gemini_generation_config,
+)
 
 # Base directory for all file paths (directory where this script lives)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -153,34 +167,12 @@ def add_or_update_schedule_mongodb(family_member_id, medicine, dosage, times):
         print(f"Updated existing medicine schedule for family member {family_member_id}: {medicine}")
 
 
-# OCR + Groq pipeline
+# OCR + Gemini pipeline
 
-def encode_image(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
-
-def parse_image_with_groq(image_path, default_prompt):
-    base64_image = encode_image(image_path)
-    response = groq_client.chat.completions.create(
-        model="llama-3.2-11b-vision-preview",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": default_prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{base64_image}"
-                        }
-                    }
-                ]
-            }
-        ],
-        temperature=0.3,
-        max_tokens=4096,
-    )
-    return response.choices[0].message.content
+def parse_image_with_gemini(image_path, default_prompt):
+    img = PIL.Image.open(image_path)
+    response = gemini_model.generate_content([default_prompt, img])
+    return response.text
 
 # Create the prompt for Gemini based on meal times
 def create_default_prompt(user_name, family_name, family_member_id=None):
@@ -375,18 +367,11 @@ async def upload_image(
 
         family_member_name = find_family_member(family_member_id)
 
-        # Step 2: Create the prompt for Groq
+        # Step 2: Create the prompt for Gemini
         default_prompt = create_default_prompt(user_name, family_member_name, family_member_id)
 
-        # Step 3: Parse the image using Groq Vision
-        parsed_info = parse_image_with_groq(file_location, default_prompt)
-        
-        # Clean potential markdown formatting
-        if parsed_info.startswith("```json"):
-            parsed_info = parsed_info[7:-3].strip()
-        elif parsed_info.startswith("```"):
-            parsed_info = parsed_info[3:-3].strip()
-            
+        # Step 3: Parse the image using Gemini
+        parsed_info = parse_image_with_gemini(file_location, default_prompt)
         print(f"\nParsed Prescription Information:\n{parsed_info}")
 
         # Step 4: Process the parsed info and update the family member's schedule
