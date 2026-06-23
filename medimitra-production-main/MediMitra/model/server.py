@@ -1,7 +1,6 @@
 import os
 import time
 import json
-import easyocr
 import cv2
 from groq import Groq
 from datetime import datetime
@@ -11,6 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pymongo import MongoClient
 from bson import ObjectId
+import easyocr
+
+print("Loading EasyOCR model...")
+reader = easyocr.Reader(['en'])
+print("EasyOCR loaded.")
 
 # Base directory for all file paths (directory where this script lives)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -165,7 +169,6 @@ def preprocess_image(image_path):
 
 # Extract text using EasyOCR
 def extract_text_from_image(image_path):
-    reader = easyocr.Reader(['en'])
     processed_image_path = preprocess_image(image_path)
     result = reader.readtext(processed_image_path, detail=0)
     text = ' '.join(result)
