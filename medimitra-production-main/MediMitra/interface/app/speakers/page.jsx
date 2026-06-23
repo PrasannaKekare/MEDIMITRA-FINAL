@@ -12,11 +12,11 @@ export default function SpeakerSetup() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [piUrl, setPiUrl] = useState("http://localhost:8000");
+  const [piUrl, setPiUrl] = useState("https://medimitra-final.onrender.com")
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setPiUrl(`http://${window.location.hostname}:8000`);
+      setPiUrl("https://medimitra-final.onrender.com");
     }
   }, []);
 

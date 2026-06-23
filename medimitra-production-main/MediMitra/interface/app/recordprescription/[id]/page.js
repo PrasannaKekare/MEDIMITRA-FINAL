@@ -77,7 +77,7 @@ export default function SpeechToText() {
     formData.append("transcript", transcript);
 
     try {
-      const piUrl = `http://${window.location.hostname}:8000`;
+      const piUrl = "https://medimitra-final.onrender.com";
       const response = await fetch(
         `${piUrl}/audio-prescription/`,
         {

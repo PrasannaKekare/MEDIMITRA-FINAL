@@ -51,7 +51,7 @@ const Register = () => {
       });
 
       console.log("trying fastapi");
-      const piUrl = `http://${window.location.hostname}:8000`;
+      const piUrl = "https://medimitra-final.onrender.com";
       const response = await fetch(`${piUrl}/users/`, {
         method: 'POST',
         headers: {

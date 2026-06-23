@@ -60,7 +60,7 @@ export default function UploadPrescription() {
     }
 
     try {
-      const piUrl = `http://${window.location.hostname}:8000`;
+      const piUrl = "https://medimitra-final.onrender.com";
       const response = await fetch(`${piUrl}/ocr/`, {
         method: "POST",
         body: formData,
