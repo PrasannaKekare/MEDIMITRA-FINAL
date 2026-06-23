@@ -1,7 +1,7 @@
 import os
 import time
 import json
-import cv2
+import base64
 from groq import Groq
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form
@@ -10,11 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pymongo import MongoClient
 from bson import ObjectId
-import easyocr
-
-print("Loading EasyOCR model...")
-reader = easyocr.Reader(['en'])
-print("EasyOCR loaded.")
+# Gemini removed
 
 # Base directory for all file paths (directory where this script lives)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -156,23 +152,34 @@ def add_or_update_schedule_mongodb(family_member_id, medicine, dosage, times):
         print(f"Updated existing medicine schedule for family member {family_member_id}: {medicine}")
 
 
-# OCR + Gemini pipeline
+# OCR + Groq pipeline
 
-# Preprocess the image for better OCR
-def preprocess_image(image_path):
-    image = cv2.imread(image_path)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    processed_image_path = os.path.join(BASE_DIR, 'processed_image.png')
-    cv2.imwrite(processed_image_path, thresh)
-    return processed_image_path
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
-# Extract text using EasyOCR
-def extract_text_from_image(image_path):
-    processed_image_path = preprocess_image(image_path)
-    result = reader.readtext(processed_image_path, detail=0)
-    text = ' '.join(result)
-    return text
+def parse_image_with_groq(image_path, default_prompt):
+    base64_image = encode_image(image_path)
+    response = groq_client.chat.completions.create(
+        model="llama-3.2-90b-vision-preview",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": default_prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        temperature=0.3,
+        max_tokens=4096,
+    )
+    return response.choices[0].message.content
 
 # Create the prompt for Gemini based on meal times
 def create_default_prompt(user_name, family_name, family_member_id=None):
@@ -205,8 +212,8 @@ def create_default_prompt(user_name, family_name, family_member_id=None):
     meal_times_str = f'Breakfast: {meal_times["breakfast"]}, Lunch: {meal_times["lunch"]}, Dinner: {meal_times["dinner"]}'
     
     prompt = f"""
-You are a medical assistant AI. You will be provided with text extracted from a prescription using OCR. 
-Your job is to extract the following details from the text and return them in JSON format strictly following this schema:
+You are a medical assistant AI. You will be provided with an image of a prescription or the text of a prescription. 
+Your job is to extract the following details from it and return them in JSON format strictly following this schema:
 {{
     "medicines": [
         {{
@@ -367,18 +374,21 @@ async def upload_image(
 
         family_member_name = find_family_member(family_member_id)
 
-        # Step 2: Extract text from the image
-        extracted_text = extract_text_from_image(file_location)
-        print(f"\nExtracted Text:\n{extracted_text}")
-
-        # Step 3: Create the prompt for Gemini
+        # Step 2: Create the prompt for Groq
         default_prompt = create_default_prompt(user_name, family_member_name, family_member_id)
 
-        # Step 4: Parse the extracted text using Gemini
-        parsed_info = parse_with_gemini(extracted_text, default_prompt)
+        # Step 3: Parse the image using Groq Vision
+        parsed_info = parse_image_with_groq(file_location, default_prompt)
+        
+        # Clean potential markdown formatting
+        if parsed_info.startswith("```json"):
+            parsed_info = parsed_info[7:-3].strip()
+        elif parsed_info.startswith("```"):
+            parsed_info = parsed_info[3:-3].strip()
+            
         print(f"\nParsed Prescription Information:\n{parsed_info}")
 
-        # Step 5: Process the parsed info and update the family member's schedule
+        # Step 4: Process the parsed info and update the family member's schedule
         process_parsed_info(parsed_info, user_name, family_member_id)
 
         return {"status": "success", "message": "Prescription processed and data saved successfully."}
