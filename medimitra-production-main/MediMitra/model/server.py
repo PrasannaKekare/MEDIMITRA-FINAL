@@ -12,8 +12,23 @@ from pymongo import MongoClient
 from bson import ObjectId
 import google.generativeai as genai
 
+# Base directory for all file paths (directory where this script lives)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load GEMINI_API_KEY from interface/.env
+def _load_gemini_key():
+    env_path = os.path.join(BASE_DIR, '..', 'interface', '.env')
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('GEMINI_API_KEY='):
+                    return line.split('=', 1)[1].strip()
+    return os.environ.get('GEMINI_API_KEY', '')
+
 # Configure Gemini API
-genai.configure(api_key="AIzaSyDnZGmCrZcM5go363ocMu1kLZO5V0swS8s")
+GEMINI_API_KEY = _load_gemini_key()
+genai.configure(api_key=GEMINI_API_KEY)
 gemini_generation_config = {
     "temperature": 0.3,
     "top_p": 0.95,
@@ -25,9 +40,6 @@ gemini_model = genai.GenerativeModel(
     model_name="gemini-2.5-flash",
     generation_config=gemini_generation_config,
 )
-
-# Base directory for all file paths (directory where this script lives)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI()
 
