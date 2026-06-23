@@ -5,6 +5,7 @@ import base64
 from groq import Groq
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -161,7 +162,7 @@ def encode_image(image_path):
 def parse_image_with_groq(image_path, default_prompt):
     base64_image = encode_image(image_path)
     response = groq_client.chat.completions.create(
-        model="llama-3.2-90b-vision-preview",
+        model="llama-3.2-11b-vision-preview",
         messages=[
             {
                 "role": "user",
