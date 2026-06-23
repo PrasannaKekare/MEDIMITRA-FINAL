@@ -60,11 +60,7 @@ export default function UploadPrescription() {
     }
 
     try {
-      let piUrl = "https://medimitra-final.onrender.com";
-      if (typeof window !== "undefined") {
-        const savedUrl = localStorage.getItem("piUrl");
-        if (savedUrl) piUrl = savedUrl;
-      }
+      const piUrl = "https://overreach-presuming-surprise.ngrok-free.dev";
       
       const response = await fetch(`${piUrl}/ocr/`, {
         method: "POST",

@@ -13,34 +13,14 @@ export default function SpeakerSetup() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [piUrl, setPiUrl] = useState("http://192.168.1.15:8000");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedUrl = localStorage.getItem("piUrl");
-      if (savedUrl) {
-        setPiUrl(savedUrl);
-      } else {
-        // Default to localhost for testing if nothing is saved
-        setPiUrl("http://localhost:8000");
-      }
-    }
-  }, []);
-
-  const handlePiUrlChange = (e) => {
-    const url = e.target.value;
-    setPiUrl(url);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("piUrl", url);
-    }
-  };
+  const piUrl = "https://overreach-presuming-surprise.ngrok-free.dev";
 
   useEffect(() => {
     fetchSpeakers();
     if (session?.user?.email) {
       fetchUsers();
     }
-  }, [session, piUrl]);
+  }, [session]);
 
   const fetchSpeakers = async () => {
     try {
@@ -156,21 +136,6 @@ export default function SpeakerSetup() {
           <h1 className="text-3xl font-bold mb-6 text-center text-white">
             🔊 Speaker Setup
           </h1>
-
-          {/* Raspberry Pi URL Configuration */}
-          <div className="mt-4 mb-6 pb-6 border-b border-gray-700">
-            <label className="text-gray-300 font-semibold mb-2 block">Raspberry Pi Server URL</label>
-            <input
-              type="text"
-              value={piUrl}
-              onChange={handlePiUrlChange}
-              placeholder="e.g. http://192.168.1.15:8000"
-              className="w-full p-3 bg-gray-900 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-            />
-            <p className="text-xs text-gray-400 mt-2">
-              Enter the local IP address of your Raspberry Pi running server.py on the same Wi-Fi network.
-            </p>
-          </div>
 
           {/* User Selector */}
           <div className="mt-4">

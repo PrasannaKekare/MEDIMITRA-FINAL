@@ -77,11 +77,7 @@ export default function SpeechToText() {
     formData.append("transcript", transcript);
 
     try {
-      let piUrl = "https://medimitra-final.onrender.com";
-      if (typeof window !== "undefined") {
-        const savedUrl = localStorage.getItem("piUrl");
-        if (savedUrl) piUrl = savedUrl;
-      }
+      const piUrl = "https://overreach-presuming-surprise.ngrok-free.dev";
 
       const response = await fetch(`${piUrl}/audio-prescription/`, {
         method: "POST",
