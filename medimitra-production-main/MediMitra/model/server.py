@@ -403,7 +403,24 @@ import re
 @app.get("/speakers/scan")
 def scan_speakers():
     try:
-        # Try to run pactl (Linux/Raspberry Pi)
+        # 1. Get paired bluetooth devices to map MAC -> Name
+        bt_devices_output = ""
+        try:
+            bt_devices_output = subprocess.check_output(
+                ["bluetoothctl", "devices"],
+                stderr=subprocess.STDOUT
+            ).decode()
+        except Exception as e:
+            print("Failed to get bluetoothctl devices:", e)
+
+        mac_to_name = {}
+        for line in bt_devices_output.splitlines():
+            if line.startswith("Device"):
+                parts = line.split(" ", 2)
+                if len(parts) >= 3:
+                    mac_to_name[parts[1]] = parts[2]
+
+        # 2. Get active audio sinks
         output = subprocess.check_output(
             ["pactl", "list", "short", "sinks"],
             stderr=subprocess.STDOUT
@@ -417,9 +434,14 @@ def scan_speakers():
                 parts = line.split()
                 sink = parts[1]
                 mac = sink.replace("bluez_output.", "").split(".")[0].replace("_", ":")
+                
+                # Default to MAC address if name isn't found
+                friendly_name = mac_to_name.get(mac, f"Bluetooth Speaker ({mac})")
+
                 speakers.append({
                     "speaker_id": f"speaker_{mac[-5:].replace(':','')}",
                     "mac": mac,
+                    "name": friendly_name,
                     "sink": sink
                 })
 

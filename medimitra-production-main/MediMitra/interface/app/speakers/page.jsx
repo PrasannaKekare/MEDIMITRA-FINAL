@@ -176,7 +176,7 @@ export default function SpeakerSetup() {
                       onChange={() => setSelectedSpeaker(sp)}
                     />
                     <span className="ml-3 text-gray-300 group-hover:text-white transition-colors">
-                      {sp.mac}
+                      {sp.name || sp.mac}
                     </span>
                   </label>
                 ))
