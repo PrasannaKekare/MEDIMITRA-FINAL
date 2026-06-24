@@ -216,7 +216,9 @@ Your job is to extract the following details from it and return them in JSON for
 }}
 
 Ensure times are in 24-hour format (HH:MM). Provide the response only as JSON. 
-IMPORTANT: Use the specific times provided in the 'Meal Times' section below to fill the 'times' field. 
+IMPORTANT TIME INSTRUCTIONS:
+1. If the prescription or audio explicitly mentions a specific time (e.g. "12:25 AM", "4:00 PM", "in 10 minutes"), calculate or convert that exact time to 24-hour HH:MM format and use it.
+2. ONLY if a specific time is NOT mentioned, use the 'Meal Times' below as a fallback:
 - For 'Morning' or 'Breakfast', use the time listed for Breakfast.
 - For 'Afternoon' or 'Lunch', use the time listed for Lunch.
 - For 'Night' or 'Dinner', use the time listed for Dinner.
