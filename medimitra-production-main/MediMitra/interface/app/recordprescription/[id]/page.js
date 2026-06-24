@@ -88,6 +88,11 @@ export default function SpeechToText() {
       });
 
       const data = await response.json();
+      
+      if (!response.ok || data.status === "error") {
+        throw new Error(data.message || "Failed to process prescription");
+      }
+      
       console.log("Response from FastAPI:", data);
       alert("Voice prescription processed successfully!");
     } catch (error) {

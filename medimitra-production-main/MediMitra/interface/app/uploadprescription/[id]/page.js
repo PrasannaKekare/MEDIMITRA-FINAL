@@ -69,10 +69,13 @@ export default function UploadPrescription() {
         },
         body: formData,
       });
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
+      
       const data = await response.json();
+      
+      if (!response.ok || data.status === "error") {
+        throw new Error(data.message || "Failed to upload prescription");
+      }
+      
       console.log("Response from FastAPI:", data);
       // Provide user feedback on success
       alert("Prescription uploaded and processed successfully!");

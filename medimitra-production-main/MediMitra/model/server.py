@@ -240,7 +240,16 @@ def parse_with_gemini(extracted_text, default_prompt):
 # Process parsed info to update both MongoDB and schedule.json
 def process_parsed_info(parsed_info, user_name, family_member_id):
     try:
-        parsed_json = json.loads(parsed_info)
+        # Strip markdown formatting that Gemini sometimes adds
+        clean_info = parsed_info.strip()
+        if clean_info.startswith("```json"):
+            clean_info = clean_info[7:]
+        if clean_info.startswith("```"):
+            clean_info = clean_info[3:]
+        if clean_info.endswith("```"):
+            clean_info = clean_info[:-3]
+            
+        parsed_json = json.loads(clean_info.strip())
 
         if "medicines" not in parsed_json or not parsed_json["medicines"]:
             raise ValueError("No medicines found in the parsed prescription data.")
