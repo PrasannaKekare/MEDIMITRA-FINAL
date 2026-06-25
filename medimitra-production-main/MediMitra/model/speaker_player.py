@@ -98,10 +98,19 @@ def play_audio_for_family_member(family_member, audio_file):
         if not active_sink:
             print(f"❌ Failed to find active audio sink for {mac} after waiting. Using fallback sink...")
             active_sink = speaker.get("sink") # fallback to the old saved sink
+        else:
+            print(f"✅ Found active sink {active_sink}. Waiting 4 seconds for speaker chime to finish...")
+            # CRITICAL: Bluetooth speakers play an internal chime/beep when connected.
+            # We MUST wait for this chime to finish, otherwise the 3-second voice reminder 
+            # will play silently while the speaker is busy beeping!
+            time.sleep(4)
 
         print(f"🔊 Routing audio for {family_member} to speaker {name_to_print} (Sink: {active_sink})")
 
         try:
+            # Force volume to 100% in case it reset during reconnection
+            subprocess.run(["pactl", "set-sink-volume", active_sink, "100%"], env=env, check=False)
+
             subprocess.run([
                 "paplay",
                 "--device", active_sink,
