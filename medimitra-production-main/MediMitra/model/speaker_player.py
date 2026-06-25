@@ -27,9 +27,18 @@ def find_speaker_by_family_member(family_member):
         if normalize(info.get("family_member", "")) == target:
             return speaker_id, info
 
+    # FALLBACK: If no exact match, use the FIRST available speaker
+    # This ensures reminders always play even if family member names don't match exactly
+    if speakers:
+        first_id = next(iter(speakers))
+        first_info = speakers[first_id]
+        print(f"[WARNING] No speaker mapped for '{family_member}'. "
+              f"Falling back to first available speaker: {first_info.get('name', first_id)} "
+              f"(mapped to '{first_info.get('family_member', 'unknown')}')")
+        return first_id, first_info
+
     raise ValueError(
-        f"No speaker mapped for family member '{family_member}'. "
-        f"Available: {[v.get('family_member') for v in speakers.values()]}"
+        f"No speakers available at all. Please map a speaker first."
     )
 
 
@@ -39,7 +48,6 @@ def play_audio_for_family_member(family_member, audio_file):
 
     # 1. Ensure bluetooth connection
     try:
-        # We don't check=True because it might already be connected, or might take time
         subprocess.run(
             ["bluetoothctl", "connect", mac],
             stdout=subprocess.DEVNULL,
@@ -47,40 +55,37 @@ def play_audio_for_family_member(family_member, audio_file):
             timeout=15
         )
     except Exception as e:
-        print(f"⚠️ Bluetooth connect command failed or not available: {e}")
+        print(f"[WARNING] Bluetooth connect command failed or not available: {e}")
 
     # 2. Wait for the audio sink to become available and find its current name
-    # When a speaker reconnects, its sink name can change (e.g. from .1 to .2)
-    # So we must dynamically find the active sink for this MAC.
     env = os.environ.copy()
     if "XDG_RUNTIME_DIR" not in env:
         env["XDG_RUNTIME_DIR"] = "/run/user/1000"
 
     active_sink = None
     if os.name != 'nt':
-        print(f"⏳ Waiting for audio sink to activate for {mac}...")
-        # Poll for up to 10 seconds for the sink to appear
-        for _ in range(10):
+        print(f"[INFO] Waiting for audio sink to activate for {mac}...")
+        for attempt in range(15):
             try:
                 output = subprocess.check_output(
                     ["pactl", "list", "short", "sinks"],
                     stderr=subprocess.STDOUT,
                     env=env
                 ).decode()
-                
-                # Format MAC for pactl output (e.g. D8_80_19_48_36_20)
+
                 mac_formatted = mac.replace(":", "_")
-                
+
                 for line in output.splitlines():
                     if mac_formatted in line:
                         active_sink = line.split()[1]
                         break
-                        
+
                 if active_sink:
+                    print(f"[INFO] Found sink {active_sink} on attempt {attempt + 1}")
                     break
-            except Exception:
-                pass
-            
+            except Exception as e:
+                print(f"[WARNING] pactl failed on attempt {attempt + 1}: {e}")
+
             time.sleep(1)
 
     name_to_print = speaker.get("name", speaker.get("mac", "Unknown Speaker"))
@@ -88,7 +93,7 @@ def play_audio_for_family_member(family_member, audio_file):
     # 3. Play the audio
     if os.name == 'nt':
         # Windows fallback routing
-        print(f"🔊 [Windows Routing] Playing audio for {family_member} on Windows speaker: {name_to_print}")
+        print(f"[Windows] Playing audio for {family_member} on: {name_to_print}")
         if audio_file.endswith(".wav"):
             import winsound
             winsound.PlaySound(audio_file, winsound.SND_FILENAME)
@@ -96,43 +101,71 @@ def play_audio_for_family_member(family_member, audio_file):
             os.startfile(audio_file)
     else:
         if not active_sink:
-            print(f"❌ Failed to find active audio sink for {mac} after waiting. Using fallback sink...")
-            active_sink = speaker.get("sink") # fallback to the old saved sink
-        else:
-            print(f"✅ Found active sink {active_sink}. Waiting 4 seconds for speaker chime to finish...")
-            # CRITICAL: Bluetooth speakers play an internal chime/beep when connected.
-            # We MUST wait for this chime to finish, otherwise the 3-second voice reminder 
-            # will play silently while the speaker is busy beeping!
-            time.sleep(4)
+            print(f"[WARNING] No active sink found for {mac}. Using saved sink as fallback.")
+            active_sink = speaker.get("sink")
 
-        print(f"🔊 Routing audio for {family_member} to speaker {name_to_print} (Sink: {active_sink})")
+        if not active_sink:
+            print(f"[ERROR] No sink available at all for {mac}. Cannot play audio.")
+            return
+
+        # Wait for speaker's internal "connected" chime to finish
+        print(f"[INFO] Waiting 5 seconds for speaker chime to finish...")
+        time.sleep(5)
+
+        print(f"[PLAY] Routing audio for {family_member} to {name_to_print} (Sink: {active_sink})")
 
         # Set PulseAudio sink globally for the child process
         env["PULSE_SINK"] = active_sink
 
         try:
-            # Force volume to 100% in case it reset during reconnection
-            subprocess.run(["pactl", "set-sink-volume", active_sink, "100%"], env=env, check=False)
+            # Force volume to 100%
+            subprocess.run(
+                ["pactl", "set-sink-volume", active_sink, "100%"],
+                env=env, check=False, timeout=5
+            )
+        except Exception:
+            pass
 
-            # Try multiple players to guarantee playback of both MP3 and WAV
-            success = False
-            players = [
-                ["paplay", "--device", active_sink, audio_file],
-                ["pw-play", "--target", active_sink, audio_file],
-                ["mpg123", "-a", active_sink, audio_file] if not active_sink.startswith("bluez") else ["mpg123", audio_file], # mpg123 uses PULSE_SINK
-                ["mplayer", "-ao", "pulse", audio_file]
-            ]
-            
-            for cmd in players:
-                print(f"▶️ Trying player: {cmd[0]}")
-                result = subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Determine file type
+        is_mp3 = audio_file.lower().endswith(".mp3")
+        is_wav = audio_file.lower().endswith(".wav")
+
+        # Build player list based on file type
+        players = []
+        if is_wav:
+            players.append(["paplay", "--device", active_sink, audio_file])
+            players.append(["aplay", "-D", "pulse", audio_file])
+        if is_mp3:
+            players.append(["mpg123", audio_file])  # uses PULSE_SINK env var
+            players.append(["ffplay", "-nodisp", "-autoexit", audio_file])
+        # Generic fallbacks that handle both
+        players.append(["pw-play", "--target", active_sink, audio_file])
+        players.append(["mplayer", "-ao", f"pulse::{active_sink}", audio_file])
+        players.append(["cvlc", "--play-and-exit", "--aout=pulse", audio_file])
+
+        success = False
+        for cmd in players:
+            try:
+                print(f"[PLAY] Trying: {' '.join(cmd)}")
+                result = subprocess.run(
+                    cmd, env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=30
+                )
                 if result.returncode == 0:
                     success = True
-                    print(f"✅ Successfully played audio with {cmd[0]}!")
+                    print(f"[SUCCESS] Audio played with {cmd[0]}!")
                     break
-                    
-            if not success:
-                print("❌ All audio players failed to play the file on Linux.")
-        except Exception as e:
-            print(f"❌ Critical error during audio playback: {e}")
+                else:
+                    stderr_text = result.stderr.decode(errors='replace')[:200]
+                    print(f"[FAILED] {cmd[0]} returned {result.returncode}: {stderr_text}")
+            except FileNotFoundError:
+                print(f"[SKIP] {cmd[0]} not installed")
+            except subprocess.TimeoutExpired:
+                print(f"[TIMEOUT] {cmd[0]} timed out after 30s")
+            except Exception as e:
+                print(f"[ERROR] {cmd[0]} failed: {e}")
 
+        if not success:
+            print("[ERROR] ALL audio players failed. Install mpg123: sudo apt install mpg123")

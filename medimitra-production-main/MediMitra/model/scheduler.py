@@ -3,6 +3,7 @@ import subprocess
 import schedule
 import time
 import json
+import traceback
 
 # Base directory for all file paths (directory where this script lives)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -38,30 +39,36 @@ from speaker_player import play_audio_for_family_member
 
 
 def reminder_alert(person_name, medicine, dosage):
-    reminder_text = f"Reminder for {person_name}. Please take {dosage} of {medicine}."
-    print(reminder_text)
-
-    audio_file = generate_tts(reminder_text)
-
-    # Fallback: if ElevenLabs TTS failed, use espeak-ng (offline)
-    if audio_file is None:
-        print("⚠️ ElevenLabs TTS failed, falling back to espeak-ng")
-        fallback_wav = os.path.join(BASE_DIR, "reminder_fallback.wav")
-        try:
-            subprocess.run(
-                ["espeak-ng", "-w", fallback_wav, reminder_text],
-                check=True,
-                timeout=10
-            )
-            audio_file = fallback_wav
-        except Exception as e:
-            print(f"❌ espeak-ng fallback also failed: {e}")
-            return
-
+    """Called by the scheduler when it's time for a reminder.
+    This function is wrapped in try-except so it NEVER crashes the scheduler thread."""
     try:
-        play_audio_for_family_member(person_name, audio_file)
+        reminder_text = f"Reminder for {person_name}. Please take {dosage} of {medicine}."
+        print(f"[REMINDER TRIGGERED] {reminder_text}")
+
+        audio_file = generate_tts(reminder_text)
+
+        # Fallback: if ElevenLabs TTS failed, use espeak-ng (offline)
+        if audio_file is None:
+            print("[WARNING] ElevenLabs TTS failed, falling back to espeak-ng")
+            fallback_wav = os.path.join(BASE_DIR, "reminder_fallback.wav")
+            try:
+                subprocess.run(
+                    ["espeak-ng", "-w", fallback_wav, reminder_text],
+                    check=True,
+                    timeout=10
+                )
+                audio_file = fallback_wav
+            except Exception as e:
+                print(f"[ERROR] espeak-ng fallback also failed: {e}")
+                return
+
+        try:
+            play_audio_for_family_member(person_name, audio_file)
+        except Exception as e:
+            print(f"[ERROR] Failed to play audio for {person_name}: {e}")
     except Exception as e:
-        print(f"❌ Failed to play audio for {person_name}: {e}")
+        print(f"[ERROR] reminder_alert crashed: {e}")
+        traceback.print_exc()
 
 
 # Function to clear existing scheduled reminders
@@ -72,6 +79,7 @@ def clear_existing_reminders():
 # Function to add schedules from user data to the scheduler
 def schedule_reminders():
     clear_existing_reminders()  # Clear existing jobs before adding new ones
+    job_count = 0
     for user, user_info in user_data.items():
         for family_member, family_info in user_info.get("family_members", {}).items():
             for schedule_info in family_info.get("schedules", []):
@@ -88,15 +96,23 @@ def schedule_reminders():
                             medicine,
                             dosage
                         )
+                        job_count += 1
+                        print(f"[SCHEDULED] {family_member} - {medicine} at {clean_time}")
                     except Exception as e:
-                        print(f"Failed to schedule time '{reminder_time}': {e}")
-
+                        print(f"[ERROR] Failed to schedule time '{reminder_time}': {e}")
+    print(f"[SCHEDULER] Total jobs scheduled: {job_count}")
 
 
 # Function to run the scheduler in a background thread
+# CRITICAL: This function MUST NEVER crash, or all reminders stop forever.
 def run_scheduler():
+    print("[SCHEDULER] Scheduler thread started. Checking every second...")
     while True:
-        schedule.run_pending()
+        try:
+            schedule.run_pending()
+        except Exception as e:
+            print(f"[ERROR] Scheduler run_pending failed (will retry): {e}")
+            traceback.print_exc()
         time.sleep(1)
 
 # Function to periodically reload the schedule data

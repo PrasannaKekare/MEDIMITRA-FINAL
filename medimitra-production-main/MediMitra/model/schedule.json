@@ -4,10 +4,10 @@
             "Grandpa": {
                 "schedules": [
                     {
-                        "medicine": "TestPill",
-                        "dosage": "1",
+                        "medicine": "Paracetamol",
+                        "dosage": "1 tablet",
                         "times": [
-                            "23:27"
+                            "23:51"
                         ]
                     }
                 ]
