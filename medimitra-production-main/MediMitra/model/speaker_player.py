@@ -62,12 +62,16 @@ def play_audio_for_family_member(family_member, audio_file):
             os.startfile(audio_file)
     else:
         # play audio on correct sink on Linux
+        env = os.environ.copy()
+        if "XDG_RUNTIME_DIR" not in env:
+            env["XDG_RUNTIME_DIR"] = "/run/user/1000"
+
         try:
             subprocess.run([
                 "paplay",
                 "--device", speaker["sink"],
                 audio_file
-            ], check=True)
+            ], env=env, check=True)
         except Exception as e:
             print(f"❌ Failed to play audio using paplay: {e}")
 

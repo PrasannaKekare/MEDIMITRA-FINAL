@@ -432,9 +432,16 @@ def scan_speakers():
                     mac_to_name[parts[1]] = parts[2]
 
         # 2. Get active audio sinks
+        # Provide environment variables so pactl can connect to the PulseAudio/PipeWire daemon
+        # even if the script is run from SSH or as root.
+        env = os.environ.copy()
+        if "XDG_RUNTIME_DIR" not in env:
+            env["XDG_RUNTIME_DIR"] = "/run/user/1000"
+
         output = subprocess.check_output(
             ["pactl", "list", "short", "sinks"],
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
+            env=env
         ).decode()
 
         print("PACTL OUTPUT:\n", output)
