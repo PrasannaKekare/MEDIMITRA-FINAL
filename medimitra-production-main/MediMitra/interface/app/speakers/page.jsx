@@ -13,7 +13,7 @@ export default function SpeakerSetup() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const piUrl = "https://overreach-presuming-surprise.ngrok-free.dev";
+  const piUrl = process.env.NEXT_PUBLIC_PI_URL || "http://localhost:8000";
 
   useEffect(() => {
     fetchSpeakers();

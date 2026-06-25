@@ -422,7 +422,7 @@ def scan_speakers():
                 stderr=subprocess.STDOUT
             ).decode()
         except Exception as e:
-            print("Failed to get bluetoothctl devices:", e)
+            print("Failed to get bluetoothctl devices (might be on Windows):", e)
 
         mac_to_name = {}
         for line in bt_devices_output.splitlines():
@@ -441,10 +441,11 @@ def scan_speakers():
 
         speakers = []
         for line in output.splitlines():
-            if "bluez_output" in line:
+            if "bluez_output" in line or "bluez_sink" in line:
                 parts = line.split()
                 sink = parts[1]
-                mac = sink.replace("bluez_output.", "").split(".")[0].replace("_", ":")
+                # Extract MAC from formats like bluez_output.00_11_22_33_44_55.1 or bluez_sink.00_11_22_33_44_55.a2dp_sink
+                mac = sink.replace("bluez_output.", "").replace("bluez_sink.", "").split(".")[0].replace("_", ":")
                 
                 # Default to MAC address if name isn't found
                 friendly_name = mac_to_name.get(mac, f"Bluetooth Speaker ({mac})")
@@ -462,18 +463,44 @@ def scan_speakers():
         }
 
     except FileNotFoundError:
-        # If pactl is not found (e.g. running on Windows), return a mock speaker for testing
-        print("pactl command not found (likely running on Windows). Returning a mock speaker for testing.")
-        return {
-            "raw": "Mock Windows Environment",
-            "speakers": [
-                {
-                    "speaker_id": "speaker_mock1",
-                    "mac": "00:11:22:33:44:55",
-                    "sink": "windows_mock_speaker"
-                }
-            ]
-        }
+        # If pactl is not found (e.g. running on Windows), fetch Windows Sound Devices
+        print("pactl command not found (likely running on Windows). Fetching Windows audio devices natively.")
+        try:
+            output = subprocess.check_output(
+                ["powershell", "-Command", "Get-CimInstance Win32_SoundDevice | Select-Object Manufacturer, Name, Status | ConvertTo-Json"],
+                stderr=subprocess.STDOUT
+            ).decode()
+            devices = json.loads(output)
+            if not isinstance(devices, list):
+                devices = [devices]
+            
+            speakers = []
+            for i, dev in enumerate(devices):
+                if dev and isinstance(dev, dict):
+                    name = dev.get("Name", f"Windows Speaker {i}")
+                    speakers.append({
+                        "speaker_id": f"speaker_win_{i}",
+                        "mac": f"win_mac_{i}",
+                        "name": name,
+                        "sink": name
+                    })
+            return {
+                "raw": output,
+                "speakers": speakers
+            }
+        except Exception as e:
+            print(f"Failed to fetch Windows speakers: {e}")
+            return {
+                "raw": "Mock Windows Environment",
+                "speakers": [
+                    {
+                        "speaker_id": "speaker_mock1",
+                        "mac": "00:11:22:33:44:55",
+                        "name": "Mock Windows Speaker",
+                        "sink": "windows_mock_speaker"
+                    }
+                ]
+            }
     except Exception as e:
         return {"error": str(e)}
 
