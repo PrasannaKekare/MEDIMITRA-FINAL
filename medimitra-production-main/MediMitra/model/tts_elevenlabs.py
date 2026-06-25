@@ -11,17 +11,18 @@ MODEL_ID = "eleven_multilingual_v2"
 
 def generate_tts(text, output_file=None):
     if output_file is None:
-        output_file = os.path.join(BASE_DIR, "reminder.wav")
+        output_file = os.path.join(BASE_DIR, "reminder.mp3")
 
     # Try ElevenLabs first
     if ELEVEN_API_KEY:
         try:
-            # Request WAV format directly from ElevenLabs
-            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=wav_44100"
+            # Default output is MP3, which is supported on the Free tier.
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
 
             headers = {
                 "xi-api-key": ELEVEN_API_KEY,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg"
             }
 
             payload = {

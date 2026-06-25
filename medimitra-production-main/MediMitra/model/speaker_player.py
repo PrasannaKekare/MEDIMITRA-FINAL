@@ -107,15 +107,32 @@ def play_audio_for_family_member(family_member, audio_file):
 
         print(f"🔊 Routing audio for {family_member} to speaker {name_to_print} (Sink: {active_sink})")
 
+        # Set PulseAudio sink globally for the child process
+        env["PULSE_SINK"] = active_sink
+
         try:
             # Force volume to 100% in case it reset during reconnection
             subprocess.run(["pactl", "set-sink-volume", active_sink, "100%"], env=env, check=False)
 
-            subprocess.run([
-                "paplay",
-                "--device", active_sink,
-                audio_file
-            ], env=env, check=True)
+            # Try multiple players to guarantee playback of both MP3 and WAV
+            success = False
+            players = [
+                ["paplay", "--device", active_sink, audio_file],
+                ["pw-play", "--target", active_sink, audio_file],
+                ["mpg123", "-a", active_sink, audio_file] if not active_sink.startswith("bluez") else ["mpg123", audio_file], # mpg123 uses PULSE_SINK
+                ["mplayer", "-ao", "pulse", audio_file]
+            ]
+            
+            for cmd in players:
+                print(f"▶️ Trying player: {cmd[0]}")
+                result = subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if result.returncode == 0:
+                    success = True
+                    print(f"✅ Successfully played audio with {cmd[0]}!")
+                    break
+                    
+            if not success:
+                print("❌ All audio players failed to play the file on Linux.")
         except Exception as e:
-            print(f"❌ Failed to play audio using paplay: {e}")
+            print(f"❌ Critical error during audio playback: {e}")
 
