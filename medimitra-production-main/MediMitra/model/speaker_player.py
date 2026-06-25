@@ -35,23 +35,57 @@ def find_speaker_by_family_member(family_member):
 
 def play_audio_for_family_member(family_member, audio_file):
     speaker_id, speaker = find_speaker_by_family_member(family_member)
+    mac = speaker["mac"]
 
-    # ensure bluetooth connection
+    # 1. Ensure bluetooth connection
     try:
+        # We don't check=True because it might already be connected, or might take time
         subprocess.run(
-            ["bluetoothctl", "connect", speaker["mac"]],
+            ["bluetoothctl", "connect", mac],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True
+            timeout=15
         )
-    except Exception:
-        pass # Probably on Windows or no bluetoothctl
+    except Exception as e:
+        print(f"⚠️ Bluetooth connect command failed or not available: {e}")
 
-    time.sleep(1)  # allow PipeWire to activate sink
-    
+    # 2. Wait for the audio sink to become available and find its current name
+    # When a speaker reconnects, its sink name can change (e.g. from .1 to .2)
+    # So we must dynamically find the active sink for this MAC.
+    env = os.environ.copy()
+    if "XDG_RUNTIME_DIR" not in env:
+        env["XDG_RUNTIME_DIR"] = "/run/user/1000"
+
+    active_sink = None
+    if os.name != 'nt':
+        print(f"⏳ Waiting for audio sink to activate for {mac}...")
+        # Poll for up to 10 seconds for the sink to appear
+        for _ in range(10):
+            try:
+                output = subprocess.check_output(
+                    ["pactl", "list", "short", "sinks"],
+                    stderr=subprocess.STDOUT,
+                    env=env
+                ).decode()
+                
+                # Format MAC for pactl output (e.g. D8_80_19_48_36_20)
+                mac_formatted = mac.replace(":", "_")
+                
+                for line in output.splitlines():
+                    if mac_formatted in line:
+                        active_sink = line.split()[1]
+                        break
+                        
+                if active_sink:
+                    break
+            except Exception:
+                pass
+            
+            time.sleep(1)
+
     name_to_print = speaker.get("name", speaker.get("mac", "Unknown Speaker"))
-    print(f"🔊 Routing audio for {family_member} to speaker {name_to_print} (Sink: {speaker['sink']})")
 
+    # 3. Play the audio
     if os.name == 'nt':
         # Windows fallback routing
         print(f"🔊 [Windows Routing] Playing audio for {family_member} on Windows speaker: {name_to_print}")
@@ -61,15 +95,16 @@ def play_audio_for_family_member(family_member, audio_file):
         else:
             os.startfile(audio_file)
     else:
-        # play audio on correct sink on Linux
-        env = os.environ.copy()
-        if "XDG_RUNTIME_DIR" not in env:
-            env["XDG_RUNTIME_DIR"] = "/run/user/1000"
+        if not active_sink:
+            print(f"❌ Failed to find active audio sink for {mac} after waiting. Using fallback sink...")
+            active_sink = speaker.get("sink") # fallback to the old saved sink
+
+        print(f"🔊 Routing audio for {family_member} to speaker {name_to_print} (Sink: {active_sink})")
 
         try:
             subprocess.run([
                 "paplay",
-                "--device", speaker["sink"],
+                "--device", active_sink,
                 audio_file
             ], env=env, check=True)
         except Exception as e:
