@@ -79,13 +79,17 @@ def schedule_reminders():
                 dosage = schedule_info['dosage']
                 times = schedule_info['times']
                 for reminder_time in times:
-                    # Schedule the reminder for the family member
-                    schedule.every().day.at(reminder_time).do(
-                        reminder_alert,
-                        family_member,
-                        medicine,
-                        dosage
-)
+                    try:
+                        clean_time = reminder_time.strip()
+                        # Schedule the reminder for the family member
+                        schedule.every().day.at(clean_time).do(
+                            reminder_alert,
+                            family_member,
+                            medicine,
+                            dosage
+                        )
+                    except Exception as e:
+                        print(f"Failed to schedule time '{reminder_time}': {e}")
 
 
 

@@ -11,17 +11,17 @@ MODEL_ID = "eleven_multilingual_v2"
 
 def generate_tts(text, output_file=None):
     if output_file is None:
-        output_file = os.path.join(BASE_DIR, "reminder.mp3")
+        output_file = os.path.join(BASE_DIR, "reminder.wav")
 
     # Try ElevenLabs first
     if ELEVEN_API_KEY:
         try:
-            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+            # Request PCM/WAV format so paplay can easily play it on Linux
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=pcm_44100_16"
 
             headers = {
                 "xi-api-key": ELEVEN_API_KEY,
-                "Content-Type": "application/json",
-                "Accept": "audio/mpeg"
+                "Content-Type": "application/json"
             }
 
             payload = {
@@ -36,8 +36,12 @@ def generate_tts(text, output_file=None):
             r = requests.post(url, json=payload, headers=headers, timeout=20)
 
             if r.status_code == 200:
-                with open(output_file, "wb") as f:
-                    f.write(r.content)
+                import wave
+                with wave.open(output_file, 'wb') as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2) # 16-bit
+                    wf.setframerate(44100)
+                    wf.writeframes(r.content)
                 return output_file
             else:
                 print(f"⚠️ ElevenLabs error: {r.status_code} {r.text}")
