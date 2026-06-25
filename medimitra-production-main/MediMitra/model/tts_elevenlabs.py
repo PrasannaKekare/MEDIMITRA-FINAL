@@ -17,7 +17,7 @@ def generate_tts(text, output_file=None):
     if ELEVEN_API_KEY:
         try:
             # Default output is MP3, which is supported on the Free tier.
-            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=mp3_44100_128"
 
             headers = {
                 "xi-api-key": ELEVEN_API_KEY,
@@ -29,8 +29,8 @@ def generate_tts(text, output_file=None):
                 "text": text,
                 "model_id": MODEL_ID,
                 "voice_settings": {
-                    "stability": 0.4,
-                    "similarity_boost": 0.7
+                    "stability": 0.75,
+                    "similarity_boost": 0.8
                 }
             }
 
