@@ -597,23 +597,23 @@ def test_speaker(
     }
 
 
-
 import threading
 import scheduler
+
+@app.on_event("startup")
+def startup_event():
+    print("🚀 Starting background scheduler threads...")
+    # Start the scheduler thread
+    scheduler_thread = threading.Thread(target=scheduler.run_scheduler, daemon=True)
+    scheduler_thread.start()
+
+    # Start the schedule file watcher thread
+    watcher_thread = threading.Thread(target=scheduler.reload_schedule_data, daemon=True)
+    watcher_thread.start()
 
 # Load existing data at startup
 load_data_from_file()
 
 # Run the FastAPI server
 if __name__ == "__main__":
-    # Start the scheduler thread
-    scheduler_thread = threading.Thread(target=scheduler.run_scheduler)
-    scheduler_thread.daemon = True
-    scheduler_thread.start()
-
-    # Start the schedule file watcher thread
-    watcher_thread = threading.Thread(target=scheduler.reload_schedule_data)
-    watcher_thread.daemon = True
-    watcher_thread.start()
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
