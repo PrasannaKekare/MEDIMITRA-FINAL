@@ -16,8 +16,8 @@ def generate_tts(text, output_file=None):
     # Try ElevenLabs first
     if ELEVEN_API_KEY:
         try:
-            # Request PCM/WAV format so paplay can easily play it on Linux
-            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=pcm_44100_16"
+            # Request WAV format directly from ElevenLabs
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=wav_44100"
 
             headers = {
                 "xi-api-key": ELEVEN_API_KEY,
@@ -36,22 +36,18 @@ def generate_tts(text, output_file=None):
             r = requests.post(url, json=payload, headers=headers, timeout=20)
 
             if r.status_code == 200:
-                import wave
-                with wave.open(output_file, 'wb') as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(2) # 16-bit
-                    wf.setframerate(44100)
-                    wf.writeframes(r.content)
+                with open(output_file, "wb") as f:
+                    f.write(r.content)
                 return output_file
             else:
-                print(f"⚠️ ElevenLabs error: {r.status_code} {r.text}")
+                print(f"ElevenLabs error: {r.status_code} {r.text}")
         except Exception as e:
-            print(f"⚠️ ElevenLabs request failed: {e}")
+            print(f"ElevenLabs request failed: {e}")
     else:
-        print("⚠️ ELEVEN_API_KEY not set")
+        print("ELEVEN_API_KEY not set")
 
     # Fallback: use espeak-ng (offline, always available on Pi)
-    print("🔄 Falling back to espeak-ng for TTS")
+    print("Falling back to espeak-ng for TTS")
     fallback_file = os.path.join(BASE_DIR, "reminder_fallback.wav")
     try:
         subprocess.run(
@@ -61,5 +57,5 @@ def generate_tts(text, output_file=None):
         )
         return fallback_file
     except Exception as e:
-        print(f"❌ espeak-ng fallback also failed: {e}")
+        print(f"espeak-ng fallback also failed: {e}")
         return None

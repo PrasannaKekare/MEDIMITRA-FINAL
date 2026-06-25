@@ -1,13 +1,13 @@
 {
-    "user1": {
+    "test_user": {
         "family_members": {
             "Grandpa": {
                 "schedules": [
                     {
-                        "medicine": "Aspirin",
-                        "dosage": "1 pill",
+                        "medicine": "TestPill",
+                        "dosage": "1",
                         "times": [
-                            "22:55"
+                            "23:04"
                         ]
                     }
                 ]
