@@ -508,6 +508,8 @@ def scan_speakers():
                     }
                 ]
             }
+    except subprocess.CalledProcessError as e:
+        return {"error": str(e), "output": e.output.decode() if e.output else "No output"}
     except Exception as e:
         return {"error": str(e)}
 
