@@ -47,16 +47,4 @@ def generate_tts(text, output_file=None):
     else:
         print("ELEVEN_API_KEY not set")
 
-    # Fallback: use espeak-ng (offline, always available on Pi)
-    print("Falling back to espeak-ng for TTS")
-    fallback_file = os.path.join(BASE_DIR, "reminder_fallback.wav")
-    try:
-        subprocess.run(
-            ["espeak-ng", "-w", fallback_file, text],
-            check=True,
-            timeout=10
-        )
-        return fallback_file
-    except Exception as e:
-        print(f"espeak-ng fallback also failed: {e}")
-        return None
+    return None
