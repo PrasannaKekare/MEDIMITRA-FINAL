@@ -7,7 +7,7 @@ import scheduler
 
 # --- CONFIGURATION ---
 # Replace this with your actual Render URL
-RENDER_URL = "https://your-medimitra-backend.onrender.com"
+RENDER_URL = "https://medimitra-final.onrender.com"
 # ---------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
