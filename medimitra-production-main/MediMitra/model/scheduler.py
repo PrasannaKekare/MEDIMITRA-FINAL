@@ -38,11 +38,19 @@ from tts_elevenlabs import generate_tts
 from speaker_player import play_audio_for_family_member
 
 
-def reminder_alert(person_name, medicine, dosage):
+def grouped_reminder_alert(person_name, meds):
     """Called by the scheduler when it's time for a reminder.
-    This function is wrapped in try-except so it NEVER crashes the scheduler thread."""
+    Takes a list of (medicine, dosage) tuples to combine them into one audio."""
     try:
-        reminder_text = f"Reminder for {person_name}. Please take {dosage} of {medicine}."
+        # Combine all medicines into one fluent sentence
+        if len(meds) == 1:
+            med_text = f"{meds[0][1]} of {meds[0][0]}"
+        else:
+            med_strings = [f"{dosage} of {medicine}" for medicine, dosage in meds]
+            # Join all with commas, and the last one with 'and'
+            med_text = ", ".join(med_strings[:-1]) + f", and {med_strings[-1]}"
+
+        reminder_text = f"Reminder for {person_name}. Please take {med_text}."
         print(f"[REMINDER TRIGGERED] {reminder_text}")
 
         audio_file = generate_tts(reminder_text)
@@ -56,9 +64,8 @@ def reminder_alert(person_name, medicine, dosage):
         except Exception as e:
             print(f"[ERROR] Failed to play audio for {person_name}: {e}")
     except Exception as e:
-        print(f"[ERROR] reminder_alert crashed: {e}")
+        print(f"[ERROR] grouped_reminder_alert crashed: {e}")
         traceback.print_exc()
-
 
 # Function to clear existing scheduled reminders
 def clear_existing_reminders():
@@ -69,27 +76,40 @@ def clear_existing_reminders():
 def schedule_reminders():
     clear_existing_reminders()  # Clear existing jobs before adding new ones
     job_count = 0
+    
+    # Group medicines by (family_member, time) so we only play ONE audio
+    grouped_reminders = {}
+    
     for user, user_info in user_data.items():
         for family_member, family_info in user_info.get("family_members", {}).items():
             for schedule_info in family_info.get("schedules", []):
-                medicine = schedule_info['medicine']
-                dosage = schedule_info['dosage']
-                times = schedule_info['times']
+                medicine = schedule_info.get('medicine', 'Unknown')
+                dosage = schedule_info.get('dosage', '1 dose')
+                times = schedule_info.get('times', [])
+                
                 for reminder_time in times:
-                    try:
-                        clean_time = reminder_time.strip()
-                        # Schedule the reminder for the family member
-                        schedule.every().day.at(clean_time).do(
-                            reminder_alert,
-                            family_member,
-                            medicine,
-                            dosage
-                        )
-                        job_count += 1
-                        print(f"[SCHEDULED] {family_member} - {medicine} at {clean_time}")
-                    except Exception as e:
-                        print(f"[ERROR] Failed to schedule time '{reminder_time}': {e}")
-    print(f"[SCHEDULER] Total jobs scheduled: {job_count}")
+                    clean_time = reminder_time.strip()
+                    if clean_time:
+                        key = (family_member, clean_time)
+                        if key not in grouped_reminders:
+                            grouped_reminders[key] = []
+                        grouped_reminders[key].append((medicine, dosage))
+                        
+    # Schedule the grouped reminders
+    for (family_member, clean_time), meds in grouped_reminders.items():
+        try:
+            schedule.every().day.at(clean_time).do(
+                grouped_reminder_alert,
+                family_member,
+                meds
+            )
+            job_count += 1
+            med_names = [m[0] for m in meds]
+            print(f"[SCHEDULED] {family_member} at {clean_time} for {len(meds)} medicines: {', '.join(med_names)}")
+        except Exception as e:
+            print(f"[ERROR] Failed to schedule {family_member} at {clean_time}: {e}")
+            
+    print(f"[SCHEDULER] Total grouped jobs scheduled: {job_count}")
 
 
 # Function to run the scheduler in a background thread
