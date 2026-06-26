@@ -18,7 +18,7 @@ def sync_from_cloud():
     print(f"☁️ Cloud Sync Engine started. Pulling from {RENDER_URL}/sync-schedule")
     while True:
         try:
-            response = requests.get(f"{RENDER_URL}/sync-schedule", timeout=10)
+            response = requests.get(f"{RENDER_URL}/sync-schedule", timeout=60)
             if response.status_code == 200:
                 cloud_data = response.json()
                 
