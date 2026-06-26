@@ -126,22 +126,8 @@ def play_audio_for_family_member(family_member, audio_file):
         except Exception:
             pass
 
-        # Determine file type
-        is_mp3 = audio_file.lower().endswith(".mp3")
-        is_wav = audio_file.lower().endswith(".wav")
-
-        # Build player list based on file type
-        players = []
-        if is_wav:
-            players.append(["paplay", "--device", active_sink, audio_file])
-            players.append(["aplay", "-D", "pulse", audio_file])
-        if is_mp3:
-            players.append(["mpg123", audio_file])  # uses PULSE_SINK env var
-            players.append(["ffplay", "-nodisp", "-autoexit", audio_file])
-        # Generic fallbacks that handle both
-        players.append(["pw-play", "--target", active_sink, audio_file])
-        players.append(["mplayer", "-ao", f"pulse::{active_sink}", audio_file])
-        players.append(["cvlc", "--play-and-exit", "--aout=pulse", audio_file])
+        # Since we exclusively use ElevenLabs (MP3), we only need mpg123
+        players = [["mpg123", audio_file]]
 
         success = False
         for cmd in players:

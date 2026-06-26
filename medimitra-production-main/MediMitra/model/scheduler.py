@@ -47,20 +47,9 @@ def reminder_alert(person_name, medicine, dosage):
 
         audio_file = generate_tts(reminder_text)
 
-        # Fallback: if ElevenLabs TTS failed, use espeak-ng (offline)
         if audio_file is None:
-            print("[WARNING] ElevenLabs TTS failed, falling back to espeak-ng")
-            fallback_wav = os.path.join(BASE_DIR, "reminder_fallback.wav")
-            try:
-                subprocess.run(
-                    ["espeak-ng", "-w", fallback_wav, reminder_text],
-                    check=True,
-                    timeout=10
-                )
-                audio_file = fallback_wav
-            except Exception as e:
-                print(f"[ERROR] espeak-ng fallback also failed: {e}")
-                return
+            print("[ERROR] ElevenLabs TTS failed. Skipping reminder since fallbacks are disabled.")
+            return
 
         try:
             play_audio_for_family_member(person_name, audio_file)
