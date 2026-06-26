@@ -353,10 +353,31 @@ async def delete_user(user_name: str):
 async def sync_schedule():
     """Endpoint for the Raspberry Pi to download the schedule from Render"""
     try:
+        data = {}
         if os.path.exists(SCHEDULE_FILE_PATH):
             with open(SCHEDULE_FILE_PATH, 'r') as file:
-                return json.load(file)
-        return {}
+                data = json.load(file)
+        
+        # Merge latest schedules from MongoDB to survive Render restarts
+        for user_name, user_info in data.items():
+            for family_name, family_info in user_info.get("family_members", {}).items():
+                # Find family member ID by name
+                member = family_members_collection.find_one({"name": family_name})
+                if member:
+                    member_id = str(member["_id"])
+                    # Fetch all medicines for this member
+                    medicines = medicine_collection.find({"family_member_id": member_id})
+                    schedules = []
+                    for med in medicines:
+                        schedules.append({
+                            "medicine": med.get("name"),
+                            "dosage": med.get("dosage"),
+                            "times": med.get("times", [])
+                        })
+                    if schedules:
+                        family_info["schedules"] = schedules
+        
+        return data
     except Exception as e:
         return {"error": str(e)}
 
