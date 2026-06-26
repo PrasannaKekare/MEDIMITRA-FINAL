@@ -351,34 +351,56 @@ async def delete_user(user_name: str):
 # --- ADD THIS ENDPOINT FOR CLOUD-TO-PI SYNC ---
 @app.get("/sync-schedule")
 async def sync_schedule():
-    """Endpoint for the Raspberry Pi to download the schedule from Render"""
+    """Endpoint for the Raspberry Pi to download the complete schedule from Render MongoDB"""
     try:
         data = {}
+        
+        # 1. Start by loading existing OCR data (if any)
         if os.path.exists(SCHEDULE_FILE_PATH):
-            with open(SCHEDULE_FILE_PATH, 'r') as file:
-                data = json.load(file)
-        
-        # Merge latest schedules from MongoDB to survive Render restarts
-        for user_name, user_info in data.items():
-            for family_name, family_info in user_info.get("family_members", {}).items():
-                # Find family member ID by name
-                member = family_members_collection.find_one({"name": family_name})
-                if member:
-                    member_id = str(member["_id"])
-                    # Fetch all medicines for this member
-                    medicines = medicine_collection.find({"family_member_id": member_id})
-                    schedules = []
-                    for med in medicines:
-                        schedules.append({
-                            "medicine": med.get("name"),
-                            "dosage": med.get("dosage"),
-                            "times": med.get("times", [])
-                        })
-                    if schedules:
-                        family_info["schedules"] = schedules
-        
+            try:
+                with open(SCHEDULE_FILE_PATH, 'r') as file:
+                    data = json.load(file)
+            except Exception:
+                pass
+                
+        # 2. Add a global bucket for all MongoDB users 
+        # (The Pi's scheduler.py iterates through all users automatically)
+        if "mongodb_users" not in data:
+            data["mongodb_users"] = {"family_members": {}}
+            
+        # 3. Pull EVERY family member from MongoDB
+        all_members = family_members_collection.find()
+        for member in all_members:
+            member_name = member.get("name")
+            member_id = str(member.get("_id"))
+            
+            if not member_name: 
+                continue
+                
+            # 4. Pull all medicines for this specific member
+            medicines = medicine_collection.find({"family_member_id": member_id})
+            schedules = []
+            
+            for med in medicines:
+                times = med.get("times", [])
+                if isinstance(times, str):
+                    times = [t.strip() for t in times.split(',')]
+                    
+                schedules.append({
+                    "medicine": med.get("name", "Unknown Medicine"),
+                    "dosage": med.get("dosage", "1 tablet"),
+                    "times": times
+                })
+                
+            # 5. Attach their schedule to the payload
+            if schedules:
+                data["mongodb_users"]["family_members"][member_name] = {
+                    "schedules": schedules
+                }
+                
         return data
     except Exception as e:
+        print(f"Error in sync_schedule: {e}")
         return {"error": str(e)}
 
 @app.post("/ocr/")
