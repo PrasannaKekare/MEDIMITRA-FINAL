@@ -28,6 +28,19 @@ def _load_gemini_key():
 
 # Configure Gemini API
 GEMINI_API_KEY = _load_gemini_key()
+
+if GEMINI_API_KEY == "AQ.Ab8RN6JNpOZVEQzghAtpu2O6WLyiU7Mep0gLRKfZmuZdiirBMQ":
+    raise ValueError(
+        "\n\n=======================================================\n"
+        "🚨 STOP! THAT IS NOT A GEMINI API KEY! 🚨\n\n"
+        "The string starting with 'AQ...' is an OAuth web token or Firebase token.\n"
+        "It will NEVER work for the Gemini API.\n\n"
+        "A real Gemini API Key ALWAYS starts with 'AIzaSy...'\n\n"
+        "Please go to: https://aistudio.google.com/app/apikey\n"
+        "Click 'Create API key', copy it, and put it in your .env file!\n"
+        "=======================================================\n"
+    )
+
 genai.configure(api_key=GEMINI_API_KEY)
 gemini_generation_config = {
     "temperature": 0.3,
