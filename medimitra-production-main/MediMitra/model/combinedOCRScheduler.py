@@ -5,7 +5,7 @@ import json
 import threading
 import easyocr
 import cv2
-import google.generativeai as genai
+import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -13,23 +13,9 @@ from dotenv import load_dotenv
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env')
 load_dotenv(env_path, override=True)
 
-# Configure Gemini API with your key
-genai.configure(api_key="AQ.Ab8RN6JNpOZVEQzghAtpu2O6WLyiU7Mep0gLRKfZmuZdiirBMQ")
-
-# Setup the generation configuration
-generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 64,
-    "max_output_tokens": 8192,
-    "response_mime_type": "application/json",
-}
-
-# Create the model
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
-    generation_config=generation_config,
-)
+# Configure NVIDIA API
+NVIDIA_API_KEY = "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"
+NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 
 # Default prompt to instruct Gemini to extract medicine details
 default_prompt = """
@@ -44,13 +30,22 @@ Your job is to extract the following details from the text and return them in JS
             "times": ["string"],   # format: HH:MM
             "meal_times": ["string"]
         }
+{{
+    "medicines": [
+        {{
+            "name": "string",
+            "dosage": "string",
+            "frequency": "string",
+            "times": ["string"],   # format: HH:MM
+            "meal_times": ["string"]
+        }}
     ],
     "duration": "string",
     "advice": "string",
     "follow_up": "string"
-}
+}}
 
-Please ensure the times are in 24-hour format (HH:MM) and provide only this JSON with no additional text.
+Please ensure the times are in 24-hour format (HH:MM). Provide the response ONLY as valid JSON. Do NOT include any markdown formatting, code blocks, or conversational text. Start your response with {{ and end it with }}.
 """
 
 
@@ -178,26 +173,7 @@ def extract_text_from_image(image_path):
     text = ' '.join(result)
     return text
 
-# Function to send extracted text to Gemini for parsing
-def parse_with_gemini(extracted_text):
-    chat_session = model.start_chat(
-        history=[
-            {
-                "role": "user",
-                "parts": [default_prompt]
-            },
-            {
-                "role": "model",
-                "parts": ["Ready to extract prescription details. Please provide the text."]
-            },
-        ]
-    )
 
-    # Send the extracted text to Gemini for parsing
-    response = chat_session.send_message(extracted_text)
-
-    # Return the parsed response from Gemini
-    return response.text
 
 # Function to process the JSON response and update the schedule
 def process_parsed_info(parsed_info, person_name):
@@ -214,6 +190,9 @@ def process_parsed_info(parsed_info, person_name):
         end_idx = clean_info.rfind('}')
         if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
             clean_info = clean_info[start_idx:end_idx+1]
+        else:
+            print(f"Warning: No JSON found in model output:\n{clean_info}")
+            raise ValueError("Model failed to return valid JSON.")
             
     parsed_json = json.loads(clean_info.strip())
 
@@ -285,26 +264,30 @@ def ocr_pipeline_with_gemini(image_path, person_name):
     # Step 4: Process the parsed info and update the schedule
     process_parsed_info(parsed_info, person_name)
 
-# Modify the parse_with_gemini function to accept the prompt
 def parse_with_gemini(extracted_text, default_prompt):
-    chat_session = model.start_chat(
-        history=[
+    headers = {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "meta/llama-3.2-11b-vision-instruct",
+        "messages": [
             {
                 "role": "user",
-                "parts": [default_prompt]
-            },
-            {
-                "role": "model",
-                "parts": ["Ready to extract prescription details. Please provide the text."]
-            },
-        ]
-    )
-
-    # Send the extracted text to Gemini for parsing
-    response = chat_session.send_message(extracted_text)
-
-    # Return the parsed response from Gemini
-    return response.text
+                "content": f"{default_prompt}\n\nPrescription Text:\n{extracted_text}"
+            }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.3,
+        "top_p": 1.00
+    }
+    
+    response = requests.post(NVIDIA_INVOKE_URL, headers=headers, json=payload)
+    response.raise_for_status()
+    data = response.json()
+    return data['choices'][0]['message']['content']
 
 def validate_time_format(time_str):
     try:

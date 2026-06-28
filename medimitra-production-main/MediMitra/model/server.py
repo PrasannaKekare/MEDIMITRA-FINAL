@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pymongo import MongoClient
 from bson import ObjectId
-import google.generativeai as genai
+import requests
 
 # Base directory for all file paths (directory where this script lives)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,41 +18,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 from dotenv import load_dotenv
 
 # Load environment variables
-def _load_gemini_key():
-    env_path = os.path.join(BASE_DIR, '..', '.env')
-    load_dotenv(env_path, override=True)
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key or not api_key.startswith("AIza"):
-        print("[WARNING] Invalid or missing GEMINI_API_KEY. It should start with 'AIzaSy'...")
-    return api_key
-
-# Configure Gemini API
-GEMINI_API_KEY = _load_gemini_key()
-
-if GEMINI_API_KEY == "AQ.Ab8RN6JNpOZVEQzghAtpu2O6WLyiU7Mep0gLRKfZmuZdiirBMQ":
-    raise ValueError(
-        "\n\n=======================================================\n"
-        "🚨 STOP! THAT IS NOT A GEMINI API KEY! 🚨\n\n"
-        "The string starting with 'AQ...' is an OAuth web token or Firebase token.\n"
-        "It will NEVER work for the Gemini API.\n\n"
-        "A real Gemini API Key ALWAYS starts with 'AIzaSy...'\n\n"
-        "Please go to: https://aistudio.google.com/app/apikey\n"
-        "Click 'Create API key', copy it, and put it in your .env file!\n"
-        "=======================================================\n"
-    )
-
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_generation_config = {
-    "temperature": 0.3,
-    "top_p": 0.95,
-    "top_k": 64,
-    "max_output_tokens": 8192,
-    "response_mime_type": "application/json",
-}
-gemini_model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
-    generation_config=gemini_generation_config,
-)
+# Configure NVIDIA API
+NVIDIA_API_KEY = "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"
+NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 
 app = FastAPI()
 
@@ -178,9 +146,39 @@ def add_or_update_schedule_mongodb(family_member_id, medicine, dosage, times):
 # OCR + Gemini pipeline
 
 def parse_image_with_gemini(image_path, default_prompt):
-    img = PIL.Image.open(image_path)
-    response = gemini_model.generate_content([default_prompt, img])
-    return response.text
+    import base64
+    with open(image_path, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+        
+    headers = {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    ext = image_path.split('.')[-1].lower()
+    mime_type = f"image/{ext}" if ext in ['png', 'jpg', 'jpeg', 'webp'] else "image/jpeg"
+    
+    payload = {
+        "model": "meta/llama-3.2-11b-vision-instruct",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": default_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded_string}"}}
+                ]
+            }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.3,
+        "top_p": 1.00
+    }
+    
+    response = requests.post(NVIDIA_INVOKE_URL, headers=headers, json=payload)
+    response.raise_for_status()
+    data = response.json()
+    return data['choices'][0]['message']['content']
 
 # Create the prompt for Gemini based on meal times
 def create_default_prompt(user_name, family_name, family_member_id=None):
@@ -228,7 +226,8 @@ Your job is to extract the following details from it and return them in JSON for
     "follow_up": "string"
 }}
 
-Ensure times are in 24-hour format (HH:MM). Provide the response only as JSON. 
+Ensure times are in 24-hour format (HH:MM). Provide the response ONLY as valid JSON. Do NOT include any markdown formatting, code blocks, or conversational text. Start your response with {{ and end it with }}.
+
 IMPORTANT TIME INSTRUCTIONS:
 1. If the prescription or audio explicitly mentions a specific time (e.g. "12:25 AM", "4:00 PM", "in 10 minutes"), calculate or convert that exact time to 24-hour HH:MM format and use it.
 2. ONLY if a specific time is NOT mentioned, use the 'Meal Times' below as a fallback:
@@ -246,11 +245,31 @@ def create_default_prompt_audio(user_name, family_name, family_member_id=None):
     # Reuse the same logic for audio
     return create_default_prompt(user_name, family_name, family_member_id)
 
-# Parse the extracted text using Gemini
 def parse_with_gemini(extracted_text, default_prompt):
-    """Uses Gemini API to parse prescription text."""
-    response = gemini_model.generate_content([default_prompt, extracted_text])
-    return response.text
+    """Uses NVIDIA API to parse prescription text."""
+    headers = {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "meta/llama-3.2-11b-vision-instruct",
+        "messages": [
+            {
+                "role": "user",
+                "content": f"{default_prompt}\n\nPrescription Text/Audio Transcript:\n{extracted_text}"
+            }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.3,
+        "top_p": 1.00
+    }
+    
+    response = requests.post(NVIDIA_INVOKE_URL, headers=headers, json=payload)
+    response.raise_for_status()
+    data = response.json()
+    return data['choices'][0]['message']['content']
 
 # Process parsed info to update both MongoDB and schedule.json
 def process_parsed_info(parsed_info, user_name, family_member_id):
@@ -269,6 +288,9 @@ def process_parsed_info(parsed_info, user_name, family_member_id):
             end_idx = clean_info.rfind('}')
             if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
                 clean_info = clean_info[start_idx:end_idx+1]
+            else:
+                print(f"Warning: No JSON found in model output:\n{clean_info}")
+                raise ValueError("Model failed to return valid JSON.")
                 
         parsed_json = json.loads(clean_info.strip())
 

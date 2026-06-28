@@ -1,30 +1,16 @@
 import os
 import easyocr
 import cv2
-import google.generativeai as genai
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env')
 load_dotenv(env_path, override=True)
 
-# Configure Gemini API with your key
-genai.configure(api_key="AQ.Ab8RN6JNpOZVEQzghAtpu2O6WLyiU7Mep0gLRKfZmuZdiirBMQ")
-
-# Setup the generation configuration
-generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 64,
-    "max_output_tokens": 8192,
-    "response_mime_type": "text/plain",
-}
-
-# Create the model
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
-    generation_config=generation_config,
-)
+# Configure NVIDIA API
+NVIDIA_API_KEY = "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"
+NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 
 # Default prompt to instruct Gemini to extract medicine details
 default_prompt = """
@@ -66,25 +52,29 @@ def extract_text_from_image(image_path):
 
 # Function to send extracted text to Gemini for parsing
 def parse_with_gemini(extracted_text):
-    # Start a new chat session with the default instruction in history
-    chat_session = model.start_chat(
-        history=[
+    headers = {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "meta/llama-3.2-11b-vision-instruct",
+        "messages": [
             {
                 "role": "user",
-                "parts": [default_prompt]
-            },
-            {
-                "role": "model",
-                "parts": ["Ready to extract prescription details. Please provide the text."]
-            },
-        ]
-    )
-
-    # Send the extracted text to Gemini for parsing
-    response = chat_session.send_message(extracted_text)
+                "content": f"{default_prompt}\n\nPrescription Text:\n{extracted_text}"
+            }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.3,
+        "top_p": 1.00
+    }
     
-    # Return the parsed response from Gemini
-    return response.text
+    response = requests.post(NVIDIA_INVOKE_URL, headers=headers, json=payload)
+    response.raise_for_status()
+    data = response.json()
+    return data['choices'][0]['message']['content']
 
 # Main OCR + Gemini parsing pipeline
 def ocr_pipeline_with_gemini(image_path):
