@@ -42,51 +42,83 @@ def find_speaker_by_family_member(family_member):
     )
 
 
+import fcntl
+
 def play_audio_for_family_member(family_member, audio_file):
+    lock_file_path = os.path.join(BASE_DIR, "audio_playback.lock")
+    with open(lock_file_path, "w") as lock_file:
+        try:
+            print(f"[INFO] Acquiring audio playback lock for {family_member}...")
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            _play_audio_locked(family_member, audio_file)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+def _play_audio_locked(family_member, audio_file):
     speaker_id, speaker = find_speaker_by_family_member(family_member)
     mac = speaker["mac"]
 
-    # 1. Ensure bluetooth connection
-    try:
-        subprocess.run(
-            ["bluetoothctl", "connect", mac],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=15
-        )
-    except Exception as e:
-        print(f"[WARNING] Bluetooth connect command failed or not available: {e}")
-
-    # 2. Wait for the audio sink to become available and find its current name
+    # 1. Check if already connected/active
     env = os.environ.copy()
     if "XDG_RUNTIME_DIR" not in env:
         env["XDG_RUNTIME_DIR"] = "/run/user/1000"
 
+    already_active = False
     active_sink = None
+    
     if os.name != 'nt':
-        print(f"[INFO] Waiting for audio sink to activate for {mac}...")
-        for attempt in range(15):
-            try:
-                output = subprocess.check_output(
-                    ["pactl", "list", "short", "sinks"],
-                    stderr=subprocess.STDOUT,
-                    env=env
-                ).decode()
-
-                mac_formatted = mac.replace(":", "_")
-
-                for line in output.splitlines():
-                    if mac_formatted in line:
-                        active_sink = line.split()[1]
-                        break
-
-                if active_sink:
-                    print(f"[INFO] Found sink {active_sink} on attempt {attempt + 1}")
+        try:
+            output = subprocess.check_output(
+                ["pactl", "list", "short", "sinks"],
+                stderr=subprocess.STDOUT,
+                env=env
+            ).decode()
+            mac_formatted = mac.replace(":", "_")
+            for line in output.splitlines():
+                if mac_formatted in line:
+                    already_active = True
+                    active_sink = line.split()[1]
                     break
-            except Exception as e:
-                print(f"[WARNING] pactl failed on attempt {attempt + 1}: {e}")
+        except Exception:
+            pass
 
-            time.sleep(1)
+    # 2. Ensure bluetooth connection if not active
+    if not already_active:
+        try:
+            subprocess.run(
+                ["bluetoothctl", "connect", mac],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=15
+            )
+        except Exception as e:
+            print(f"[WARNING] Bluetooth connect command failed or not available: {e}")
+
+        # Wait for the audio sink to become available and find its current name
+        if os.name != 'nt':
+            print(f"[INFO] Waiting for audio sink to activate for {mac}...")
+            for attempt in range(15):
+                try:
+                    output = subprocess.check_output(
+                        ["pactl", "list", "short", "sinks"],
+                        stderr=subprocess.STDOUT,
+                        env=env
+                    ).decode()
+
+                    mac_formatted = mac.replace(":", "_")
+
+                    for line in output.splitlines():
+                        if mac_formatted in line:
+                            active_sink = line.split()[1]
+                            break
+
+                    if active_sink:
+                        print(f"[INFO] Found sink {active_sink} on attempt {attempt + 1}")
+                        break
+                except Exception as e:
+                    print(f"[WARNING] pactl failed on attempt {attempt + 1}: {e}")
+
+                time.sleep(1)
 
     name_to_print = speaker.get("name", speaker.get("mac", "Unknown Speaker"))
 
@@ -108,9 +140,10 @@ def play_audio_for_family_member(family_member, audio_file):
             print(f"[ERROR] No sink available at all for {mac}. Cannot play audio.")
             return
 
-        # Wait for speaker's internal "connected" chime to finish
-        print(f"[INFO] Waiting 5 seconds for speaker chime to finish...")
-        time.sleep(5)
+        # Wait for speaker's internal "connected" chime to finish ONLY if we just connected
+        if not already_active:
+            print(f"[INFO] Waiting 5 seconds for speaker chime to finish...")
+            time.sleep(5)
 
         print(f"[PLAY] Routing audio for {family_member} to {name_to_print} (Sink: {active_sink})")
 
@@ -149,7 +182,7 @@ def play_audio_for_family_member(family_member, audio_file):
             except FileNotFoundError:
                 print(f"[SKIP] {cmd[0]} not installed")
             except subprocess.TimeoutExpired:
-                print(f"[TIMEOUT] {cmd[0]} timed out after 30s")
+                print(f"[TIMEOUT] {cmd[0]} timed out after 120s")
             except Exception as e:
                 print(f"[ERROR] {cmd[0]} failed: {e}")
 
