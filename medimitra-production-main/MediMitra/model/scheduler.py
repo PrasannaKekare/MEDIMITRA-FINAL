@@ -56,7 +56,7 @@ def grouped_reminder_alert(person_name, meds):
         audio_file = generate_tts(reminder_text)
 
         if audio_file is None:
-            print("[ERROR] ElevenLabs TTS failed. Skipping reminder since fallbacks are disabled.")
+            print("[ERROR] TTS (ElevenLabs and Cartesia) failed. Skipping reminder since fallbacks are disabled.")
             return
 
         try:
