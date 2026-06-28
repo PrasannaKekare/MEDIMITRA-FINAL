@@ -7,6 +7,11 @@ import easyocr
 import cv2
 import google.generativeai as genai
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env')
+load_dotenv(env_path)
 
 # Configure Gemini API with your key
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))

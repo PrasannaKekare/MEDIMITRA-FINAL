@@ -15,15 +15,12 @@ import google.generativeai as genai
 # Base directory for all file paths (directory where this script lives)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Load GEMINI_API_KEY from interface/.env
+from dotenv import load_dotenv
+
+# Load environment variables
 def _load_gemini_key():
-    env_path = os.path.join(BASE_DIR, '..', 'interface', '.env')
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('GEMINI_API_KEY='):
-                    return line.split('=', 1)[1].strip()
+    env_path = os.path.join(BASE_DIR, '..', '.env')
+    load_dotenv(env_path)
     return os.environ.get('GEMINI_API_KEY', '')
 
 # Configure Gemini API
