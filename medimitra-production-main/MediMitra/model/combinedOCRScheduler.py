@@ -201,7 +201,21 @@ def parse_with_gemini(extracted_text):
 
 # Function to process the JSON response and update the schedule
 def process_parsed_info(parsed_info, person_name):
-    parsed_json = json.loads(parsed_info)
+    import re
+    clean_info = parsed_info.strip()
+    
+    # 1. Try to find a markdown code block
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", clean_info, re.DOTALL)
+    if match:
+        clean_info = match.group(1)
+    else:
+        # 2. Try to find the first { and last }
+        start_idx = clean_info.find('{')
+        end_idx = clean_info.rfind('}')
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            clean_info = clean_info[start_idx:end_idx+1]
+            
+    parsed_json = json.loads(clean_info.strip())
 
     # Iterate over the medicines extracted
     for medicine in parsed_json.get("medicines", []):
