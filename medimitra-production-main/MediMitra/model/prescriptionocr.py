@@ -9,7 +9,7 @@ env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'
 load_dotenv(env_path, override=True)
 
 # Configure Gemini API with your key
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+genai.configure(api_key="AQ.Ab8RN6JNpOZVEQzghAtpu2O6WLyiU7Mep0gLRKfZmuZdiirBMQ")
 
 # Setup the generation configuration
 generation_config = {

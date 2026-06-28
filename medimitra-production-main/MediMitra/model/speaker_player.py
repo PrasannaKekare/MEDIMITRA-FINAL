@@ -42,17 +42,23 @@ def find_speaker_by_family_member(family_member):
     )
 
 
-import fcntl
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
 
 def play_audio_for_family_member(family_member, audio_file):
     lock_file_path = os.path.join(BASE_DIR, "audio_playback.lock")
     with open(lock_file_path, "w") as lock_file:
         try:
             print(f"[INFO] Acquiring audio playback lock for {family_member}...")
-            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            if HAS_FCNTL:
+                fcntl.flock(lock_file, fcntl.LOCK_EX)
             _play_audio_locked(family_member, audio_file)
         finally:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
+            if HAS_FCNTL:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 def _play_audio_locked(family_member, audio_file):
     speaker_id, speaker = find_speaker_by_family_member(family_member)
