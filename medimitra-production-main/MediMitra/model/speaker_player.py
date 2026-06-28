@@ -137,7 +137,7 @@ def play_audio_for_family_member(family_member, audio_file):
                     cmd, env=env,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=30
+                    timeout=120
                 )
                 if result.returncode == 0:
                     success = True
