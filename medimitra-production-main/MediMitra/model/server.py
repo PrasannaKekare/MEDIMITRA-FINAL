@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 # Load environment variables
 def _load_gemini_key():
     env_path = os.path.join(BASE_DIR, '..', '.env')
-    load_dotenv(env_path)
+    load_dotenv(env_path, override=True)
     return os.environ.get('GEMINI_API_KEY', '')
 
 # Configure Gemini API
