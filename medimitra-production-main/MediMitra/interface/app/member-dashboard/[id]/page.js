@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import NavbarInternal from "../../../app/components/NavbarInternal";
 import { FaCamera, FaMicrophone } from "react-icons/fa";
+import Spinner from "../../../app/components/Spinner";
 
 export default function MemberDashboard() {
   const router = useRouter();
@@ -79,8 +80,8 @@ export default function MemberDashboard() {
       {/* Render Medicines */}
       <h2 className="text-5xl font-dm text-center pt-5">Your scheduled reminders</h2>
       <div className="medicines-list font-dm text-2xl flex flex-wrap justify-center pt-10">
-      {loading && <p className="w-fulltext-center text-2xl text-gray-300">Loading medicines...</p>}
-        {medicines.length === 0 ? (
+      {loading && <Spinner />}
+        {!loading && medicines.length === 0 ? (
           <p className="text-center text-2xl text-gray-300 pt-20">
             No medicines added yet
           </p>

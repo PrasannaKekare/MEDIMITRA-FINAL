@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import { FaTimes } from "react-icons/fa";
+import ButtonSpinner from "../../components/ButtonSpinner";
 
 export default function UploadPrescription() {
   const [images, setImages] = useState([]);
@@ -11,6 +12,7 @@ export default function UploadPrescription() {
   const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [familyMemberId, setFamilyMemberId] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = React.useRef(null);
   const router = useRouter();
   const { id } = useParams(); // Grab family member ID from the URL
@@ -60,6 +62,7 @@ export default function UploadPrescription() {
     }
 
     try {
+      setIsLoading(true);
       const piUrl = "https://overreach-presuming-surprise.ngrok-free.dev";
       
       const response = await fetch(`${piUrl}/ocr/`, {
@@ -83,6 +86,8 @@ export default function UploadPrescription() {
     } catch (error) {
       console.error("Error uploading images:", error);
       alert("Failed to upload prescription. Ensure the backend is running.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -151,10 +156,11 @@ export default function UploadPrescription() {
         {/* Submit Button */}
         <button
           onClick={handleSubmit}
-          className="w-full bg-white text-black py-3 rounded-lg hover:bg-purple-500 hover:text-white transition-all disabled:bg-gray-500 disabled:cursor-not-allowed"
-          disabled={previews.length === 0 || !email || !familyMemberId} // Disable if no images or empty fields
+          className="w-full bg-white text-black py-3 rounded-lg hover:bg-purple-500 hover:text-white transition-all disabled:bg-gray-500 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+          disabled={previews.length === 0 || !email || !familyMemberId || isLoading} // Disable if no images, empty fields, or loading
         >
-          Submit
+          {isLoading && <ButtonSpinner className="text-current" />}
+          {isLoading ? "Processing..." : "Submit"}
         </button>
       </div>
     </div>

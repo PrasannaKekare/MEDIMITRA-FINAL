@@ -1,6 +1,7 @@
 "use client";
 import NavbarInternal from "../../app/components/NavbarInternal";
 import { useState, useEffect } from "react";
+import Spinner from "../components/Spinner";
 
 export default function Marketplace() {
   const [medicines, setMedicines] = useState([]);
@@ -30,7 +31,7 @@ export default function Marketplace() {
   return (
     <div className="marketplace-page font-dm text-2xl flex flex-wrap justify-center pt-10">
         <NavbarInternal />
-      {loading && <p className="w-full text-center text-2xl text-gray-300">Loading medicines...</p>}
+      {loading && <Spinner />}
       <div className="w-full h-full pt-20 flex flex-wrap">
       {medicines.length === 0 ? (
         <p className="text-center text-2xl text-gray-300 pt-20">No medicines available</p>

@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { signIn, getSession } from 'next-auth/react';
 import { useSession } from "next-auth/react";
 import Spinner from "../components/Spinner";
+import ButtonSpinner from "../components/ButtonSpinner";
 
 const Register = () => {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { data: session, status: sessionStatus } = useSession();
   
   useEffect(() => {
@@ -42,6 +44,7 @@ const Register = () => {
     }
 
     try {
+      setIsLoading(true);
       const res = await fetch("/api/register", {
         method: "POST",
         headers: {
@@ -71,6 +74,8 @@ const Register = () => {
     } catch (error) {
       setError("Error, try again");
       console.log(error);
+    } finally {
+      setIsLoading(false);
     }
   };
   if (sessionStatus === 'loading') {
@@ -117,8 +122,9 @@ const Register = () => {
                 required
                 className="w-full p-2 border rounded text-black"
               />
-              <button type="submit" className="bg-purple-600 font-semibold w-full py-2 rounded text-white">
-                Sign Up
+              <button type="submit" disabled={isLoading} className="bg-purple-600 font-semibold w-full py-2 rounded text-white flex justify-center items-center gap-2 disabled:bg-purple-400 disabled:cursor-not-allowed">
+                {isLoading && <ButtonSpinner />}
+                {isLoading ? "Signing up..." : "Sign Up"}
               </button>
               <p className="text-red-600 text-[16px] mb-4">{error && error}</p>
             </form>

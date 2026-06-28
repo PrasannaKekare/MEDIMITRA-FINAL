@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import NavbarInternal from "../components/NavbarInternal";
 import Image from "next/image";
 import user from '../../public/user.png'; // Placeholder image
+import Spinner from "../components/Spinner";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -54,7 +55,7 @@ export default function Dashboard() {
   };
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return <Spinner />;
   }
 
   return (

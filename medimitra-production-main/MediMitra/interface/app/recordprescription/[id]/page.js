@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FaMicrophone, FaKeyboard } from "react-icons/fa";
+import ButtonSpinner from "../../components/ButtonSpinner";
 
 export default function SpeechToText() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [recognition, setRecognition] = useState(null);
   const [inputMode, setInputMode] = useState("voice"); // voice | text
+  const [isLoading, setIsLoading] = useState(false);
 
   const { id } = useParams();
   const { data: session } = useSession();
@@ -77,6 +79,7 @@ export default function SpeechToText() {
     formData.append("transcript", transcript);
 
     try {
+      setIsLoading(true);
       const piUrl = "https://overreach-presuming-surprise.ngrok-free.dev";
 
       const response = await fetch(`${piUrl}/audio-prescription/`, {
@@ -98,6 +101,8 @@ export default function SpeechToText() {
     } catch (error) {
       console.error("Error submitting transcript:", error);
       alert("Failed to process voice prescription.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -165,9 +170,11 @@ export default function SpeechToText() {
 
       <button
         onClick={handleSubmit}
-        className="px-6 py-3 mt-6 text-black text-2xl font-dm border-4 border-gray-400 font-semibold rounded-xl bg-white hover:bg-purple-500 hover:text-white"
+        disabled={isLoading}
+        className="px-6 py-3 mt-6 text-black text-2xl font-dm border-4 border-gray-400 font-semibold rounded-xl bg-white hover:bg-purple-500 hover:text-white disabled:bg-gray-500 disabled:cursor-not-allowed flex justify-center items-center gap-2"
       >
-        Submit
+        {isLoading && <ButtonSpinner className="text-current" />}
+        {isLoading ? "Processing..." : "Submit"}
       </button>
     </div>
   );

@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import NavbarInternal from "../components/NavbarInternal";
+import Spinner from "../components/Spinner";
+import ButtonSpinner from "../components/ButtonSpinner";
 
 export default function AddMember() {
   const { data: session, status } = useSession(); // Access session to get the email
@@ -12,6 +14,7 @@ export default function AddMember() {
   const [breakfastTime, setBreakfastTime] = useState("");
   const [lunchTime, setLunchTime] = useState("");
   const [dinnerTime, setDinnerTime] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,6 +23,8 @@ export default function AddMember() {
       alert("User is not logged in");
       return;
     }
+    
+    setIsLoading(true);
 
     // Format the meal times
     const formattedBreakfast = `${breakfastTime}`;
@@ -85,6 +90,8 @@ export default function AddMember() {
     } catch (err) {
       console.error("Network error calling /api/member:", err);
       alert("Network error. Please check your connection.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,7 +100,7 @@ export default function AddMember() {
   }
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return <Spinner />;
   }
 
   if (status === "authenticated") {
@@ -181,9 +188,11 @@ export default function AddMember() {
           <div>
             <button
               type="submit"
-              className="w-full p-3 bg-white text-black rounded-lg shadow-lg font-dm hover:bg-purple-500  hover:text-white transition-transform transform hover:scale-105"
+              disabled={isLoading}
+              className="w-full p-3 bg-white text-black rounded-lg shadow-lg font-dm hover:bg-purple-500 hover:text-white transition-transform transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center gap-2"
             >
-              Submit
+              {isLoading && <ButtonSpinner className="text-current" />}
+              {isLoading ? "Submitting..." : "Submit"}
             </button>
           </div>
         </form>

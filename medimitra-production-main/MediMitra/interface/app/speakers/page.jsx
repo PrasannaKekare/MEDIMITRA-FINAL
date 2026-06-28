@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import NavbarInternal from "../components/NavbarInternal";
+import ButtonSpinner from "../components/ButtonSpinner";
 
 export default function SpeakerSetup() {
   const { data: session } = useSession();
@@ -189,17 +190,19 @@ export default function SpeakerSetup() {
             <button
               onClick={testSpeaker}
               disabled={loading}
-              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:opacity-50"
+              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:opacity-50 flex justify-center items-center gap-2"
             >
-              🔊 Test
+              {loading && <ButtonSpinner className="text-current" />}
+              🔊 {loading ? "Testing..." : "Test"}
             </button>
 
             <button
               onClick={saveMapping}
               disabled={loading}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 disabled:opacity-50"
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 disabled:opacity-50 flex justify-center items-center gap-2"
             >
-              💾 Save
+              {loading && <ButtonSpinner className="text-current" />}
+              💾 {loading ? "Saving..." : "Save"}
             </button>
           </div>
 

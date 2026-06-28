@@ -4,10 +4,12 @@ import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Spinner from "../components/Spinner";
+import ButtonSpinner from "../components/ButtonSpinner";
 
 const Login = () => {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   // const session = useSession();
   const { data: session, status: sessionStatus } = useSession();
 
@@ -37,17 +39,22 @@ const Login = () => {
       return;
     }
 
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
+    try {
+      setIsLoading(true);
+      const res = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
 
-    if (res?.error) {
-      setError("Invalid email or password");
-      if (res?.url) router.replace(res.url);
-    } else {
-      setError("");
+      if (res?.error) {
+        setError("Invalid email or password");
+        if (res?.url) router.replace(res.url);
+      } else {
+        setError("");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -97,8 +104,9 @@ const Login = () => {
                 required
                 className="w-full p-2 border rounded text-black"
               />
-              <button type="submit" className="bg-purple-600 font-semibold w-full py-2 rounded text-white">
-                Login
+              <button type="submit" disabled={isLoading} className="bg-purple-600 font-semibold w-full py-2 rounded text-white flex justify-center items-center gap-2 disabled:bg-purple-400 disabled:cursor-not-allowed">
+                {isLoading && <ButtonSpinner />}
+                {isLoading ? "Logging in..." : "Login"}
               </button>
               <p className="text-red-600 text-[16px] mb-4">{error && error}</p>
             </form>
