@@ -9,7 +9,7 @@ ELEVEN_API_KEY = "sk_f695aac7f5ad558ed6e48ad82b697fdbc3f1bafadcfd4c72"
 VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
 MODEL_ID = "eleven_multilingual_v2"
 
-CARTESIA_API_KEY = "sk_car_MPR5Cd4qSpVxsGBKL3Nwwo"
+CARTESIA_API_KEY = "sk_car_RmY5HApF2tpJp45ngrhdRQ"
 CARTESIA_VOICE_ID = "f786b574-daa5-4673-aa0c-cbe3e8534c02" # Katie - en-US Female
 
 def generate_tts(text, output_file=None):
