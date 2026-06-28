@@ -5,7 +5,7 @@ import requests
 # Base directory for all file paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-ELEVEN_API_KEY = "sk_8c38bb44e5309900bab908739f15e01dd3546dad22e57b0c"
+ELEVEN_API_KEY = "sk_f695aac7f5ad558ed6e48ad82b697fdbc3f1bafadcfd4c72"
 VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
 MODEL_ID = "eleven_multilingual_v2"
 
