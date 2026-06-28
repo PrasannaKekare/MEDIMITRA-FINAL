@@ -9,8 +9,7 @@ import google.generativeai as genai
 from datetime import datetime
 
 # Configure Gemini API with your key
-# genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-genai.configure(api_key="AIzaSyDnZGmCrZcM5go363ocMu1kLZO5V0swS8s")
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 # Setup the generation configuration
 generation_config = {
