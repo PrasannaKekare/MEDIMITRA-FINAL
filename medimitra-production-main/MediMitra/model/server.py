@@ -21,7 +21,10 @@ from dotenv import load_dotenv
 def _load_gemini_key():
     env_path = os.path.join(BASE_DIR, '..', '.env')
     load_dotenv(env_path, override=True)
-    return "AQ.Ab8RN6JNpOZVEQzghAtpu2O6WLyiU7Mep0gLRKfZmuZdiirBMQ"
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or not api_key.startswith("AIza"):
+        print("[WARNING] Invalid or missing GEMINI_API_KEY. It should start with 'AIzaSy'...")
+    return api_key
 
 # Configure Gemini API
 GEMINI_API_KEY = _load_gemini_key()
